@@ -304,6 +304,11 @@
       <!-- Mode indicator shown during forced type-in -->
       <div id="mode-indicator" class="mode-indicator" style="display:none">⌨️ Type the English meaning from memory</div>
 
+      <!-- Kana mode indicator + hint button -->
+      <div id="kana-indicator" class="mode-indicator" style="display:none;background:var(--bg-success);border-color:var(--border-success);color:var(--text-success);">
+        🈳 Type the Japanese reading (kana)
+      </div>
+
       <div style="text-align:center; margin-bottom: 8px;">
         <label style="font-size:13px; color:var(--text2); cursor:pointer; user-select:none;">
           <input type="checkbox" id="kana-only-toggle" style="margin-right:5px;">
@@ -336,8 +341,13 @@
 
       <div id="choices-area" class="choices"></div>
       <div id="type-area" class="type-row" style="display:none">
-        <input type="text" id="type-input" placeholder="Type the meaning in English..." autocomplete="off"/>
+        <input type="text" id="type-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
         <button id="submit-btn">Check</button>
+      </div>
+      <!-- Hint: only shown in kana mode, costs a wrong answer -->
+      <div id="hint-area" style="display:none;text-align:center;margin-bottom:0.5rem;">
+        <button id="hint-btn" class="btn-sm" style="color:var(--text-danger);border-color:var(--border-danger);font-size:12px;">💡 Hint (counts as wrong)</button>
+        <div id="hint-display" style="display:none;font-size:22px;color:var(--text2);margin-top:8px;letter-spacing:0.05em;"></div>
       </div>
 
       <div class="btn-row">
@@ -757,17 +767,19 @@ let todayStr = new Date().toISOString().slice(0,10);
 // ANTI-CHEAT: if the previous type-in was wrong, allow one multiple choice fallback this viewing
 let allowMultipleChoiceFallback = false;
 
-// ANTI-CHEAT: determines the forced card mode based on lifetime seenCount.
-//   seenCount 0 → "intro"    — full reveal, no question, just learn the word
-//   seenCount 1 → "multiple" — multiple choice, recognition test
-//   seenCount 2+ → "type"    — forced type-in, pure recall, no shortcuts
-// Special case: if they just got a type-in wrong, allowMultipleChoiceFallback=true
-// gives them one multiple choice attempt to reinforce, then back to type-in next time.
+// Card mode progression based on lifetime seenCount and correct answers:
+//   sc=0        → "intro"      — full reveal, no question
+//   sc=1        → "multiple"   — multiple choice JP→EN (recognition)
+//   sc=2-3 OR correct<3 → "type" — type the English meaning (comprehension)
+//   correct>=3  → "kana"       — see English, type the kana (production)
+// Special: wrong on type-in gives one "multiple_fallback" to reinforce
 function getCardMode(level, word) {
   const sc = getWP(level, word).seenCount || 0;
+  const correct = getWP(level, word).correct || 0;
   if (sc === 0) return "intro";
   if (sc === 1) return "multiple";
   if (allowMultipleChoiceFallback) return "multiple_fallback";
+  if (correct >= 3) return "kana";
   return "type";
 }
 
@@ -1150,8 +1162,13 @@ function nextWord() {
     document.getElementById("intro-jp").textContent = currentWord.jp;
     document.getElementById("intro-kana").textContent = currentWord.r;
     document.getElementById("intro-en").textContent = currentWord.en;
-    // Hide controls that don't apply on intro
+    // Hide everything except the intro card itself
     document.getElementById("kana-only-toggle").parentElement.style.display = "none";
+    document.getElementById("choices-area").style.display = "none";
+    document.getElementById("type-area").style.display = "none";
+    document.getElementById("next-btn").style.display = "none";
+    document.getElementById("more-btn").style.display = "none";
+    document.getElementById("mode-indicator").style.display = "none";
     // Increment seenCount now so next time it gets multiple choice
     const wp = getWP(currentLevel, currentWord);
     wp.seenCount = (wp.seenCount || 0) + 1;
@@ -1165,25 +1182,41 @@ function nextWord() {
 
   // Restore controls for quiz cards
   document.getElementById("kana-only-toggle").parentElement.style.display = "block";
+  document.getElementById("hint-area").style.display = "none";
+  document.getElementById("hint-display").style.display = "none";
+  document.getElementById("kana-indicator").style.display = "none";
 
   // SECOND OR LATER VIEWING: show the normal quiz card
-  const displayText = kanaOnly ? currentWord.r : currentWord.jp;
-  document.getElementById("word-jp").textContent = displayText;
-  document.getElementById("word-jp").style.fontSize = kanaOnly ? "36px" : "48px";
-  document.getElementById("word-kana").textContent = kanaOnly ? "" : currentWord.r;
-  document.getElementById("word-romaji").textContent = currentWord.romaji || currentWord.r;
-  document.getElementById("word-kana").style.display = kanaOnly ? "none" : "block";
-  document.getElementById("word-romaji").style.display = "none";
-  document.getElementById("show-romaji-btn").style.display = "block";
-  document.getElementById("speak-btn").style.display = japaneseVoice ? "inline-block" : "none";
-  document.getElementById("word-type").textContent = currentWord.type || "";
-  renderDots(getWP(currentLevel, currentWord).correct);
-
-  // Show mode indicator for forced type-in
-  if (cardMode === "type") {
-    document.getElementById("mode-indicator").style.display = "block";
+  if (cardMode === "kana") {
+    // KANA PRODUCTION: show English, they must type the Japanese reading
+    document.getElementById("word-jp").textContent = currentWord.en;
+    document.getElementById("word-jp").style.fontSize = "28px";
+    document.getElementById("word-kana").style.display = "none";
+    document.getElementById("word-romaji").style.display = "none";
+    document.getElementById("show-romaji-btn").style.display = "none";
+    document.getElementById("speak-btn").style.display = "none";
+    document.getElementById("word-type").textContent = currentWord.type || "";
+    document.getElementById("kana-indicator").style.display = "block";
+    document.getElementById("hint-area").style.display = "block";
+  } else {
+    // COMPREHENSION: show Japanese, they type/pick the English meaning
+    const displayText = kanaOnly ? currentWord.r : currentWord.jp;
+    document.getElementById("word-jp").textContent = displayText;
+    document.getElementById("word-jp").style.fontSize = kanaOnly ? "36px" : "48px";
+    document.getElementById("word-kana").textContent = kanaOnly ? "" : currentWord.r;
+    document.getElementById("word-romaji").textContent = currentWord.romaji || currentWord.r;
+    document.getElementById("word-kana").style.display = kanaOnly ? "none" : "block";
+    document.getElementById("word-romaji").style.display = "none";
+    document.getElementById("show-romaji-btn").style.display = "block";
+    document.getElementById("speak-btn").style.display = japaneseVoice ? "inline-block" : "none";
+    document.getElementById("word-type").textContent = currentWord.type || "";
+    // Show mode indicator for forced type-in
+    if (cardMode === "type") {
+      document.getElementById("mode-indicator").style.display = "block";
+    }
   }
 
+  renderDots(getWP(currentLevel, currentWord).correct);
   // FIX 5: show leech badge if applicable
   document.getElementById("leech-indicator").style.display = isLeech(currentLevel, currentWord) ? "block" : "none";
 
@@ -1202,7 +1235,6 @@ function renderDots(correct) {
 }
 
 function renderInput() {
-  // ANTI-CHEAT: card mode is driven by seenCount, not the manual toggle
   const cardMode = getCardMode(currentLevel, currentWord);
   const showMultiple = (cardMode === "multiple" || cardMode === "multiple_fallback");
 
@@ -1210,7 +1242,6 @@ function renderInput() {
     document.getElementById("choices-area").style.display = "grid";
     document.getElementById("type-area").style.display = "none";
     const all = Object.values(vocabData).filter(Boolean).flat();
-    // Pull distractors from the full word pool, not just today's words
     const wrongs = all
       .filter(w => w.en !== currentWord.en)
       .sort(() => Math.random() - 0.5)
@@ -1227,11 +1258,17 @@ function renderInput() {
       area.appendChild(btn);
     });
   } else {
-    // cardMode === "type": forced type-in, no choices
+    // type or kana — both use the text input
     document.getElementById("choices-area").style.display = "none";
     document.getElementById("type-area").style.display = "flex";
     const inp = document.getElementById("type-input");
-    inp.value = ""; inp.className = ""; inp.focus();
+    inp.value = "";
+    inp.className = "";
+    // Update placeholder based on mode
+    inp.placeholder = cardMode === "kana"
+      ? "Type the kana reading (e.g. みず)..."
+      : "Type the English meaning...";
+    inp.focus();
   }
 }
 
@@ -1315,11 +1352,10 @@ function checkUnlock() {
 }
 
 function showDifficultyRating(correct) {
-  // Only show Hard/OK/Easy on type-in stage (seenCount >= 2)
-  // On multiple choice (seenCount 1) just show Next immediately
+  // Show Hard/OK/Easy on type-in and kana stages only (not multiple choice)
   const cardMode = getCardMode(currentLevel, currentWord);
-  const isTypeIn = (cardMode === "type" || cardMode === "multiple_fallback");
-  if (correct && isTypeIn) {
+  const isDeepStage = (cardMode === "type" || cardMode === "kana" || cardMode === "multiple_fallback");
+  if (correct && isDeepStage) {
     document.getElementById("difficulty-area").style.display = "block";
   } else {
     document.getElementById("difficulty-area").style.display = "none";
@@ -1334,12 +1370,33 @@ function handleChoice(btn, choice) {
   document.querySelectorAll(".choice").forEach(b => {
     if (b.textContent === currentWord.en) b.classList.add("correct");
   });
-  if (right) { btn.classList.add("correct"); setFeedback("Correct!", "good"); }
-  else { btn.classList.add("wrong"); setFeedback("Answer: " + currentWord.en, "bad"); }
-  recordResult(right);
-  document.getElementById("word-kana").style.display = "block";
-  document.getElementById("word-romaji").style.display = "block";
-  showDifficultyRating(right);
+  if (right) {
+    btn.classList.add("correct");
+    setFeedback("Correct!", "good");
+    recordResult(true);
+    // Go straight to next word — no Hard/OK/Easy on multiple choice
+    setTimeout(nextWord, 800);
+  } else {
+    btn.classList.add("wrong");
+    setFeedback("Answer: " + currentWord.en, "bad");
+    recordResult(false);
+    // Wrong on multiple choice: show the intro card again after a pause
+    setTimeout(() => {
+      // Re-show intro card so they see the full word again
+      document.getElementById("quiz-card").style.display = "none";
+      document.getElementById("intro-card").style.display = "flex";
+      document.getElementById("intro-type").textContent = currentWord.type || "";
+      document.getElementById("intro-jp").textContent = currentWord.jp;
+      document.getElementById("intro-kana").textContent = currentWord.r;
+      document.getElementById("intro-en").textContent = currentWord.en;
+      document.getElementById("choices-area").style.display = "none";
+      document.getElementById("type-area").style.display = "none";
+      document.getElementById("next-btn").style.display = "none";
+      document.getElementById("feedback").textContent = "";
+      document.getElementById("feedback").className = "feedback";
+      // Got it button now advances to next word (word already re-queued by recordResult)
+    }, 1000);
+  }
 }
 
 function handleReverseChoice(btn, choice) {
@@ -1366,18 +1423,69 @@ function handleType() {
   const val = document.getElementById("type-input").value.trim().toLowerCase();
   if (!val) {
     document.getElementById("type-input").focus();
-    return; // don't allow empty submission
+    return;
   }
   answered = true;
-  const answers = currentWord.en.toLowerCase().split(" / ");
-  const right = answers.some(a => val === a || val.includes(a) || a.includes(val));
+  const cardMode = getCardMode(currentLevel, currentWord);
+  let right;
+
+  if (cardMode === "kana") {
+    // KANA MODE: check against the kana reading
+    const kanaAnswer = currentWord.r.toLowerCase();
+    const romajiAnswer = (currentWord.romaji || "").toLowerCase();
+    right = val === kanaAnswer || (romajiAnswer && val === romajiAnswer);
+    // Accept partial match on multi-reading words like "し・よん"
+    if (!right && kanaAnswer.includes("・")) {
+      right = kanaAnswer.split("・").some(part => val === part.trim());
+    }
+  } else {
+    // ENGLISH MODE: check against the English meaning
+    const answers = currentWord.en.toLowerCase().split(" / ");
+    right = answers.some(a => val === a || val.includes(a) || a.includes(val));
+  }
+
   const inp = document.getElementById("type-input");
-  if (right) { inp.className = "correct"; setFeedback("Correct!", "good"); }
-  else { inp.className = "wrong"; setFeedback("Answer: " + currentWord.en, "bad"); }
-  recordResult(right);
-  document.getElementById("word-kana").style.display = "block";
-  document.getElementById("word-romaji").style.display = "block";
-  showDifficultyRating(right);
+  if (right) {
+    inp.className = "correct";
+    setFeedback("Correct!", "good");
+    recordResult(true);
+    if (cardMode === "kana") {
+      // Reveal the full Japanese on correct kana answer
+      document.getElementById("word-jp").textContent = currentWord.jp;
+      document.getElementById("word-jp").style.fontSize = "48px";
+      document.getElementById("word-kana").textContent = currentWord.r;
+      document.getElementById("word-kana").style.display = "block";
+      document.getElementById("hint-area").style.display = "none";
+      if (japaneseVoice) speakWord();
+    } else {
+      document.getElementById("word-kana").style.display = "block";
+      document.getElementById("word-romaji").style.display = "block";
+    }
+    showDifficultyRating(true);
+  } else {
+    inp.className = "wrong";
+    const hint = cardMode === "kana"
+      ? "Answer: " + currentWord.r + "  (" + currentWord.jp + ")"
+      : "Answer: " + currentWord.en;
+    setFeedback(hint, "bad");
+    recordResult(false);
+    setTimeout(() => {
+      document.getElementById("quiz-card").style.display = "none";
+      document.getElementById("intro-card").style.display = "flex";
+      document.getElementById("intro-type").textContent = currentWord.type || "";
+      document.getElementById("intro-jp").textContent = currentWord.jp;
+      document.getElementById("intro-kana").textContent = currentWord.r;
+      document.getElementById("intro-en").textContent = currentWord.en;
+      document.getElementById("type-area").style.display = "none";
+      document.getElementById("hint-area").style.display = "none";
+      document.getElementById("next-btn").style.display = "none";
+      document.getElementById("difficulty-area").style.display = "none";
+      document.getElementById("kana-indicator").style.display = "none";
+      document.getElementById("mode-indicator").style.display = "none";
+      document.getElementById("feedback").textContent = "";
+      document.getElementById("feedback").className = "feedback";
+    }, 1200);
+  }
 }
 
 function setFeedback(msg, cls) {
@@ -1469,6 +1577,34 @@ function speakWord() {
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById("speak-btn").onclick = speakWord;
 
+// HINT BUTTON: reveals kana for 2 seconds, counts as wrong answer
+document.getElementById("hint-btn").onclick = () => {
+  if (answered) return;
+  const display = document.getElementById("hint-display");
+  display.textContent = currentWord.r;
+  display.style.display = "block";
+  document.getElementById("hint-btn").disabled = true;
+  document.getElementById("hint-btn").style.opacity = "0.4";
+  // Record as wrong immediately — hint always costs
+  answered = true;
+  recordResult(false);
+  // Hide hint after 2 seconds, then show intro card
+  setTimeout(() => {
+    display.style.display = "none";
+    document.getElementById("quiz-card").style.display = "none";
+    document.getElementById("intro-card").style.display = "flex";
+    document.getElementById("intro-type").textContent = currentWord.type || "";
+    document.getElementById("intro-jp").textContent = currentWord.jp;
+    document.getElementById("intro-kana").textContent = currentWord.r;
+    document.getElementById("intro-en").textContent = currentWord.en;
+    document.getElementById("type-area").style.display = "none";
+    document.getElementById("hint-area").style.display = "none";
+    document.getElementById("kana-indicator").style.display = "none";
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("feedback").className = "feedback";
+  }, 2000);
+};
+
 // ANTI-CHEAT: "Got it" on the intro card — word has been introduced, move on
 document.getElementById("intro-got-it-btn").onclick = () => {
   // Re-queue this word immediately so it appears as a multiple choice question next
@@ -1506,17 +1642,17 @@ document.getElementById("more-btn").onclick = introduceMoreWords;
 document.getElementById("diff-easy").onclick = () => {
   applyDifficulty("easy");
   document.getElementById("difficulty-area").style.display = "none";
-  document.getElementById("next-btn").style.display = "inline-block";
+  nextWord();
 };
 document.getElementById("diff-ok").onclick = () => {
   applyDifficulty("ok");
   document.getElementById("difficulty-area").style.display = "none";
-  document.getElementById("next-btn").style.display = "inline-block";
+  nextWord();
 };
 document.getElementById("diff-hard").onclick = () => {
   applyDifficulty("hard");
   document.getElementById("difficulty-area").style.display = "none";
-  document.getElementById("next-btn").style.display = "inline-block";
+  nextWord();
 };
 
 document.getElementById("summary-home-btn").onclick = () => { showScreen("home-screen"); renderHome(); };
