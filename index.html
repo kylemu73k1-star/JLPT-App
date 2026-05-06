@@ -1947,10 +1947,25 @@ document.addEventListener("DOMContentLoaded", () => {
   checkApiNotice();
   renderHome();
 
-  // PWA: register the service worker so the app works offline
+  // PWA: register service worker with auto-update detection
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/JLPT-App/sw.js")
-      .then(() => console.log("JLPT Journey: service worker registered"))
+      .then(reg => {
+        // Check for updates every time the app is focused
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // New version ready — tell it to take over and reload
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+        // When a new SW takes control, reload the page to get the latest app
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.location.reload();
+        });
+      })
       .catch(err => console.warn("Service worker registration failed:", err));
   }
 });
