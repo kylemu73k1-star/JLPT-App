@@ -1,7 +1,7 @@
 // JLPT Journey Service Worker
 // Every time you update your app, bump this version number (e.g. "v2", "v3")
 // That forces the phone to download the new version automatically
-const CACHE_NAME = "jlpt-journey-v1";
+const CACHE_NAME = "jlpt-journey-v2";
 
 // These are the files we cache so the app works with no internet
 const FILES_TO_CACHE = [
