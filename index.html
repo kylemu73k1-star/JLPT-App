@@ -342,7 +342,6 @@
 
       <div class="btn-row">
         <button class="btn-primary" id="next-btn" style="display:none">Next →</button>
-        <button class="btn-sm" id="skip-btn">Skip</button>
         <button class="btn-primary" id="more-btn" style="display:none">Learn 10 more →</button>
       </div>
     </div>
@@ -1152,7 +1151,6 @@ function nextWord() {
     document.getElementById("intro-kana").textContent = currentWord.r;
     document.getElementById("intro-en").textContent = currentWord.en;
     // Hide controls that don't apply on intro
-    document.getElementById("skip-btn").style.display = "none";
     document.getElementById("kana-only-toggle").parentElement.style.display = "none";
     // Increment seenCount now so next time it gets multiple choice
     const wp = getWP(currentLevel, currentWord);
@@ -1166,7 +1164,6 @@ function nextWord() {
   }
 
   // Restore controls for quiz cards
-  document.getElementById("skip-btn").style.display = "inline-block";
   document.getElementById("kana-only-toggle").parentElement.style.display = "block";
 
   // SECOND OR LATER VIEWING: show the normal quiz card
@@ -1318,7 +1315,11 @@ function checkUnlock() {
 }
 
 function showDifficultyRating(correct) {
-  if (correct) {
+  // Only show Hard/OK/Easy on type-in stage (seenCount >= 2)
+  // On multiple choice (seenCount 1) just show Next immediately
+  const cardMode = getCardMode(currentLevel, currentWord);
+  const isTypeIn = (cardMode === "type" || cardMode === "multiple_fallback");
+  if (correct && isTypeIn) {
     document.getElementById("difficulty-area").style.display = "block";
   } else {
     document.getElementById("difficulty-area").style.display = "none";
@@ -1556,7 +1557,7 @@ function introduceMoreWords() {
   nextWord();
 }
 
-document.getElementById("skip-btn").onclick = () => { answered = true; nextWord(); };
+// skip button removed — words cannot be skipped
 document.getElementById("submit-btn").onclick = handleType;
 document.getElementById("type-input").onkeydown = e => { if (e.key === "Enter") handleType(); };
 document.getElementById("back-btn").onclick = () => { showScreen("home-screen"); renderHome(); };
