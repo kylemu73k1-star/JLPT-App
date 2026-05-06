@@ -879,25 +879,22 @@ function buildDailyQueue(level) {
   const plan = getOrCreateDailyPlan(level);
   const newTodaySet = new Set(plan.newToday || []);
 
-  // FIX 3: new words today get added to queue 3 times
-  const newWords = words.filter(w => newTodaySet.has(w.jp) && !isMastered(level, w));
-  const newWordQueue = [];
-  newWords.forEach(w => {
-    // Add each new word 3 times, spaced out
-    newWordQueue.push(w, w, w);
-  });
+  // New words go in once — seenCount drives intro→multiple→type progression
+  const newWords = words
+    .filter(w => newTodaySet.has(w.jp) && !isMastered(level, w))
+    .sort(() => Math.random() - 0.5);
 
-  // FIX 4: due reviews sorted by urgency (most overdue first)
+  // Due reviews sorted by urgency (most overdue first)
   const dueReviews = words
     .filter(w => isDueToday(level, w) && !isMastered(level, w) && !newTodaySet.has(w.jp))
     .sort((a, b) => daysOverdue(level, b) - daysOverdue(level, a));
 
-  // Interleave: start with a new word, then 2 reviews, then another new word, etc.
+  // Interleave: one new word, two reviews, one new word, two reviews...
   const queue = [];
   const reviewQueue = [...dueReviews].sort(() => Math.random() - 0.5);
   let ni = 0, ri = 0;
-  while (ni < newWordQueue.length || ri < reviewQueue.length) {
-    if (ni < newWordQueue.length) queue.push(newWordQueue[ni++]);
+  while (ni < newWords.length || ri < reviewQueue.length) {
+    if (ni < newWords.length) queue.push(newWords[ni++]);
     if (ri < reviewQueue.length) queue.push(reviewQueue[ri++]);
     if (ri < reviewQueue.length) queue.push(reviewQueue[ri++]);
   }
@@ -1154,6 +1151,9 @@ function nextWord() {
     document.getElementById("intro-jp").textContent = currentWord.jp;
     document.getElementById("intro-kana").textContent = currentWord.r;
     document.getElementById("intro-en").textContent = currentWord.en;
+    // Hide controls that don't apply on intro
+    document.getElementById("skip-btn").style.display = "none";
+    document.getElementById("kana-only-toggle").parentElement.style.display = "none";
     // Increment seenCount now so next time it gets multiple choice
     const wp = getWP(currentLevel, currentWord);
     wp.seenCount = (wp.seenCount || 0) + 1;
@@ -1164,6 +1164,10 @@ function nextWord() {
     updateQueueLabel();
     return; // intro-got-it-btn handles progression
   }
+
+  // Restore controls for quiz cards
+  document.getElementById("skip-btn").style.display = "inline-block";
+  document.getElementById("kana-only-toggle").parentElement.style.display = "block";
 
   // SECOND OR LATER VIEWING: show the normal quiz card
   const displayText = kanaOnly ? currentWord.r : currentWord.jp;
@@ -1359,7 +1363,10 @@ function handleReverseChoice(btn, choice) {
 function handleType() {
   if (answered) return;
   const val = document.getElementById("type-input").value.trim().toLowerCase();
-  if (!val) return;
+  if (!val) {
+    document.getElementById("type-input").focus();
+    return; // don't allow empty submission
+  }
   answered = true;
   const answers = currentWord.en.toLowerCase().split(" / ");
   const right = answers.some(a => val === a || val.includes(a) || a.includes(val));
@@ -1533,7 +1540,6 @@ function introduceMoreWords() {
   const notYetIntroduced = words.filter(w => !isIntroduced(currentLevel, w));
   const toIntroduce = notYetIntroduced.slice(0, NEW_PER_DAY);
 
-  // FIX 3: new words get 3 same-session drills
   toIntroduce.forEach(w => {
     const wp = getWP(currentLevel, w);
     wp.introduced = todayStr;
@@ -1543,10 +1549,8 @@ function introduceMoreWords() {
   });
   saveProgress();
 
-  // Build queue with 3x repetition for new words
-  const newWordQueue = [];
-  toIntroduce.forEach(w => newWordQueue.push(w, w, w));
-  quizQueue = newWordQueue.sort(() => Math.random() - 0.5);
+  // One copy each — seenCount handles the intro→multiple→type progression
+  quizQueue = toIntroduce.sort(() => Math.random() - 0.5);
   answered = false;
   updateQueueLabel();
   nextWord();
