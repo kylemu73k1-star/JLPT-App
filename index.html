@@ -767,12 +767,12 @@ let todayStr = new Date().toISOString().slice(0,10);
 // ANTI-CHEAT: if the previous type-in was wrong, allow one multiple choice fallback this viewing
 let allowMultipleChoiceFallback = false;
 
-// Card mode progression based on lifetime seenCount and correct answers:
-//   sc=0        → "intro"      — full reveal, no question
-//   sc=1        → "multiple"   — multiple choice JP→EN (recognition)
-//   sc=2-3 OR correct<3 → "type" — type the English meaning (comprehension)
-//   correct>=3  → "kana"       — see English, type the kana (production)
-// Special: wrong on type-in gives one "multiple_fallback" to reinforce
+// Card mode progression:
+//   sc=0              → "intro"      — full reveal
+//   sc=1              → "multiple"   — multiple choice JP→EN
+//   sc>=2, correct<2  → "multiple"   — stay on multiple choice until 2 dots earned
+//   sc>=2, correct>=2 → "type"       — type the English meaning
+//   correct>=3        → "kana"       — type the kana reading (production)
 function getCardMode(level, word) {
   const sc = getWP(level, word).seenCount || 0;
   const correct = getWP(level, word).correct || 0;
@@ -780,7 +780,8 @@ function getCardMode(level, word) {
   if (sc === 1) return "multiple";
   if (allowMultipleChoiceFallback) return "multiple_fallback";
   if (correct >= 3) return "kana";
-  return "type";
+  if (correct >= 2) return "type";
+  return "multiple";
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
