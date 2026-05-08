@@ -410,6 +410,15 @@
       <div id="api-key-status" style="font-size:12px;margin-top:8px;color:var(--text2);"></div>
     </div>
     <div class="card" style="margin-bottom:1rem;">
+      <div class="section-label" style="margin-bottom:0.75rem;font-weight:500;font-size:15px;">📅 Daily New Words</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:0.75rem;line-height:1.6;">How many new words to introduce each day. Lower is more manageable; higher is faster but harder to keep up with.</p>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <input type="range" id="daily-words-slider" min="3" max="20" step="1" value="10" style="flex:1;accent-color:var(--text);"/>
+        <span id="daily-words-value" style="font-size:20px;font-weight:700;min-width:2.5ch;text-align:right;">10</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px;"><span>3</span><span>20</span></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;">
       <div class="section-label" style="margin-bottom:0.75rem;font-weight:500;font-size:15px;">⚠️ Danger Zone</div>
       <button class="btn-danger" id="settings-reset-btn" style="width:100%;">Reset all progress</button>
     </div>
@@ -463,7 +472,7 @@
 const LEVELS = ["N5","N4","N3","N2","N1"];
 const MASTERY_NEEDED = 5;
 const MASTER_THRESHOLD = 0.80;
-const NEW_PER_DAY = 10;
+function getNewPerDay() { return parseInt(localStorage.getItem("jlpt_new_per_day") || "10"); }
 
 // ── FIX 1 & 4: Updated SRS intervals and leech threshold ─────────────────────
 // Intervals in days: [same-day-drill, 1, 3, 7, 14, 30, 60, 120]
@@ -885,7 +894,7 @@ function getOrCreateDailyPlan(level) {
 
   const words = vocabData[level] || BUILT_IN[level] || [];
   const notYetIntroduced = words.filter(w => !isIntroduced(level, w));
-  const toIntroduce = notYetIntroduced.slice(0, NEW_PER_DAY);
+  const toIntroduce = notYetIntroduced.slice(0, getNewPerDay());
 
   // FIX 3: new words get introduced with srsLevel=0 so they appear
   // multiple times in today's queue (handled in buildDailyQueue)
@@ -1693,7 +1702,7 @@ function introduceMoreWords() {
   document.getElementById("more-btn").style.display = "none";
   const words = vocabData[currentLevel] || BUILT_IN[currentLevel] || [];
   const notYetIntroduced = words.filter(w => !isIntroduced(currentLevel, w));
-  const toIntroduce = notYetIntroduced.slice(0, NEW_PER_DAY);
+  const toIntroduce = notYetIntroduced.slice(0, getNewPerDay());
 
   toIntroduce.forEach(w => {
     const wp = getWP(currentLevel, w);
@@ -1733,7 +1742,14 @@ document.getElementById("settings-nav-btn").onclick = () => {
   document.getElementById("api-key-input").value = key ? "••••••••••••••••" : "";
   document.getElementById("api-key-status").textContent = key ? "✓ API key saved" : "No API key saved";
   document.getElementById("api-key-status").style.color = key ? "var(--text-success)" : "var(--text2)";
+  const npd = getNewPerDay();
+  document.getElementById("daily-words-slider").value = npd;
+  document.getElementById("daily-words-value").textContent = npd;
   showScreen("settings-screen");
+};
+document.getElementById("daily-words-slider").oninput = function() {
+  document.getElementById("daily-words-value").textContent = this.value;
+  localStorage.setItem("jlpt_new_per_day", this.value);
 };
 document.getElementById("settings-back-btn").onclick = () => showScreen("home-screen");
 document.getElementById("save-api-key-btn").onclick = () => {
