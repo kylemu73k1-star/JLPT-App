@@ -220,6 +220,22 @@
   .chat-bubble.ai.loading { color: var(--text2); font-style: italic; }
   .chat-section-label { font-size: 12px; color: var(--text2); text-align: center; margin: 0.75rem 0 0.5rem; }
 
+  /* lesson quiz */
+  .quiz-area { margin-top: 1rem; }
+  .quiz-label { font-size: 12px; color: var(--text2); text-align: center; margin-bottom: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .quiz-question { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+  .quiz-question .q-text { font-size: 15px; font-weight: 500; margin-bottom: 0.75rem; line-height: 1.5; }
+  .quiz-option { display: block; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 6px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); font-size: 14px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+  .quiz-option:hover:not(:disabled) { background: var(--bg3); }
+  .quiz-option.correct { background: var(--bg-success); border-color: var(--border-success); color: var(--text-success); }
+  .quiz-option.wrong { background: var(--bg-danger); border-color: var(--border-danger); color: var(--text-danger); }
+  .quiz-option.reveal { background: var(--bg-success); border-color: var(--border-success); color: var(--text-success); opacity: 0.7; }
+  .quiz-explanation { font-size: 13px; color: var(--text2); margin-top: 8px; padding: 8px 10px; background: var(--bg2); border-radius: var(--radius); line-height: 1.5; display: none; }
+  .quiz-explanation.show { display: block; }
+  .quiz-score { text-align: center; padding: 1rem; background: var(--bg2); border-radius: var(--radius-lg); margin-bottom: 0.75rem; }
+  .quiz-score .score-num { font-size: 28px; font-weight: 700; }
+  .quiz-score .score-msg { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
   /* FIX 5: leech screen */
   .leech-item { background: var(--bg); border: 0.5px solid var(--border-danger); border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; }
   .leech-jp { font-size: 22px; }
@@ -434,6 +450,7 @@
       <div></div>
     </div>
     <div id="lesson-content-area"></div>
+    <div id="lesson-quiz-area"></div>
     <div id="lesson-chat-area" style="margin-top:1rem;"></div>
     <div style="display:flex;gap:8px;margin-top:0.75rem;" id="lesson-input-row">
       <input type="text" id="lesson-chat-input" placeholder="Ask a question about this lesson..." style="flex:1;padding:10px 14px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;outline:none;"/>
@@ -1835,6 +1852,7 @@ async function openLesson(id) {
   lessonChatHistory = [];
   document.getElementById("lesson-title").textContent = lesson.name;
   document.getElementById("lesson-content-area").innerHTML = `<div class="lesson-content"><div style="text-align:center;padding:2rem;color:var(--text2);font-style:italic;">Loading lesson...</div></div>`;
+  document.getElementById("lesson-quiz-area").innerHTML = "";
   document.getElementById("lesson-chat-area").innerHTML = "";
   showScreen("lesson-screen");
 
@@ -1866,18 +1884,120 @@ Format your lesson using this HTML structure (use these exact class names):
     const text = data.content?.find(b => b.type === "text")?.text || "Could not load lesson.";
     document.getElementById("lesson-content-area").innerHTML = `<div class="lesson-content">${text}</div>`;
 
-    const done = JSON.parse(localStorage.getItem("jlpt_lessons_done") || "{}");
-    done[lesson.id] = true;
-    localStorage.setItem("jlpt_lessons_done", JSON.stringify(done));
-
     lessonChatHistory = [
       { role: "user", content: `Teach me about: ${lesson.topic}` },
       { role: "assistant", content: text }
     ];
-    document.getElementById("lesson-chat-area").innerHTML = `<div class="chat-section-label">💬 Ask a follow-up question about this lesson</div>`;
+
+    // Generate quiz after lesson loads
+    await loadLessonQuiz(lesson, text, key);
+
   } catch (e) {
     document.getElementById("lesson-content-area").innerHTML = `<div class="lesson-content"><p style="color:var(--text-danger)">Error loading lesson. Check your API key in Settings.</p></div>`;
   }
+}
+
+async function loadLessonQuiz(lesson, lessonText, key) {
+  const quizArea = document.getElementById("lesson-quiz-area");
+  quizArea.innerHTML = `<div class="quiz-area"><div class="quiz-label">📝 Comprehension Check — loading...</div></div>`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1000,
+        system: `You generate multiple choice comprehension questions for Japanese language lessons. 
+Respond with ONLY a JSON array, no markdown, no explanation. Format:
+[{"q":"question text","options":["A","B","C","D"],"answer":0,"explanation":"brief explanation of why the answer is correct"}]
+- answer is the 0-based index of the correct option
+- Write 4 questions testing understanding of the key concepts
+- Keep questions clear and practical
+- Explanations should be 1-2 sentences`,
+        messages: [{ role: "user", content: `Generate 4 comprehension questions for this Japanese lesson about "${lesson.name}":\n\n${lessonText}` }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.find(b => b.type === "text")?.text || "[]";
+    const questions = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    renderLessonQuiz(questions, lesson);
+  } catch (e) {
+    quizArea.innerHTML = "";
+    // If quiz fails, still unlock chat and mark done
+    markLessonDone(lesson.id);
+    document.getElementById("lesson-chat-area").innerHTML = `<div class="chat-section-label">💬 Ask a follow-up question about this lesson</div>`;
+  }
+}
+
+function renderLessonQuiz(questions, lesson) {
+  const quizArea = document.getElementById("lesson-quiz-area");
+  let score = 0;
+  let answered = 0;
+  const total = questions.length;
+
+  const html = `
+    <div class="quiz-area">
+      <div class="quiz-label">📝 Comprehension Check</div>
+      ${questions.map((q, qi) => `
+        <div class="quiz-question" id="qq-${qi}">
+          <div class="q-text">${qi + 1}. ${q.q}</div>
+          ${q.options.map((opt, oi) => `
+            <button class="quiz-option" data-qi="${qi}" data-oi="${oi}" data-correct="${q.answer}" data-explanation="${encodeURIComponent(q.explanation)}">${opt}</button>
+          `).join("")}
+          <div class="quiz-explanation" id="qe-${qi}"></div>
+        </div>
+      `).join("")}
+    </div>`;
+  quizArea.innerHTML = html;
+
+  quizArea.querySelectorAll(".quiz-option").forEach(btn => {
+    btn.onclick = function() {
+      const qi = parseInt(this.dataset.qi);
+      const oi = parseInt(this.dataset.oi);
+      const correct = parseInt(this.dataset.correct);
+      const explanation = decodeURIComponent(this.dataset.explanation);
+
+      // Disable all options for this question
+      quizArea.querySelectorAll(`.quiz-option[data-qi="${qi}"]`).forEach(b => {
+        b.disabled = true;
+        if (parseInt(b.dataset.oi) === correct) b.classList.add(oi === correct ? "correct" : "reveal");
+      });
+
+      if (oi === correct) {
+        this.classList.add("correct");
+        score++;
+      } else {
+        this.classList.add("wrong");
+      }
+
+      // Show explanation
+      const expEl = document.getElementById(`qe-${qi}`);
+      expEl.textContent = explanation;
+      expEl.classList.add("show");
+
+      answered++;
+      if (answered === total) {
+        // All questions done — show score, mark lesson done, unlock chat
+        setTimeout(() => {
+          const msg = score === total ? "Perfect! 🎉" : score >= total * 0.75 ? "Great work! 💪" : score >= total * 0.5 ? "Keep it up! 📖" : "Review the lesson and try again next time.";
+          const scoreEl = document.createElement("div");
+          scoreEl.className = "quiz-score";
+          scoreEl.innerHTML = `<div class="score-num">${score}/${total}</div><div class="score-msg">${msg}</div>`;
+          quizArea.querySelector(".quiz-area").appendChild(scoreEl);
+          markLessonDone(lesson.id);
+          document.getElementById("lesson-chat-area").innerHTML = `<div class="chat-section-label">💬 Ask a follow-up question about this lesson</div>`;
+          scoreEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 400);
+      }
+    };
+  });
+}
+
+function markLessonDone(id) {
+  const done = JSON.parse(localStorage.getItem("jlpt_lessons_done") || "{}");
+  done[id] = true;
+  localStorage.setItem("jlpt_lessons_done", JSON.stringify(done));
 }
 
 async function sendLessonChat() {
