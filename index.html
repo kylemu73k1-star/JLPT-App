@@ -251,6 +251,7 @@
     <div class="top-bar">
       <h1>JLPT Journey</h1>
       <div class="top-bar-right">
+        <button class="btn-sm" id="kanji-toggle-btn">漢字 ON</button>
         <button class="btn-sm" id="leeches-nav-btn">🔥 Leeches</button>
         <button class="btn-sm" id="lessons-nav-btn">📚 Lessons</button>
         <button class="btn-sm" id="settings-nav-btn">⚙️</button>
@@ -323,13 +324,6 @@
       <!-- Kana mode indicator + hint button -->
       <div id="kana-indicator" class="mode-indicator" style="display:none;background:var(--bg-success);border-color:var(--border-success);color:var(--text-success);">
         🈳 Type the Japanese reading (kana)
-      </div>
-
-      <div style="text-align:center; margin-bottom: 8px;">
-        <label style="font-size:13px; color:var(--text2); cursor:pointer; user-select:none;">
-          <input type="checkbox" id="kana-only-toggle" style="margin-right:5px;">
-          Kana only (hide kanji)
-        </label>
       </div>
 
       <div id="quiz-card" class="quiz-card">
@@ -1190,7 +1184,6 @@ function nextWord() {
     document.getElementById("intro-kana").textContent = currentWord.r;
     document.getElementById("intro-en").textContent = currentWord.en;
     // Hide everything except the intro card itself
-    document.getElementById("kana-only-toggle").parentElement.style.display = "none";
     document.getElementById("choices-area").style.display = "none";
     document.getElementById("type-area").style.display = "none";
     document.getElementById("next-btn").style.display = "none";
@@ -1208,7 +1201,6 @@ function nextWord() {
   }
 
   // Restore controls for quiz cards
-  document.getElementById("kana-only-toggle").parentElement.style.display = "block";
   document.getElementById("hint-area").style.display = "none";
   document.getElementById("hint-display").style.display = "none";
   document.getElementById("kana-indicator").style.display = "none";
@@ -1652,8 +1644,9 @@ document.querySelectorAll(".mode-btn").forEach(btn => {
   };
 });
 
-document.getElementById("kana-only-toggle").onchange = (e) => {
-  kanaOnly = e.target.checked;
+document.getElementById("kanji-toggle-btn").onclick = () => {
+  kanaOnly = !kanaOnly;
+  document.getElementById("kanji-toggle-btn").textContent = kanaOnly ? "漢字 OFF" : "漢字 ON";
   if (currentWord && !answered) {
     document.getElementById("word-jp").textContent = kanaOnly ? currentWord.r : currentWord.jp;
     document.getElementById("word-jp").style.fontSize = kanaOnly ? "36px" : "48px";
