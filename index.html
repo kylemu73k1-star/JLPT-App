@@ -1921,6 +1921,10 @@ Respond with ONLY a JSON array, no markdown, no explanation. Format:
     const data = await res.json();
     const raw = data.content?.find(b => b.type === "text")?.text || "[]";
     const questions = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    lessonChatHistory.push({
+      role: "assistant",
+      content: `After the lesson I tested the student with these comprehension questions:\n${questions.map((q,i) => `${i+1}. ${q.q}\nOptions: ${q.options.join(" / ")}\nCorrect answer: ${q.options[q.answer]}\nExplanation: ${q.explanation}`).join("\n\n")}`
+    });
     renderLessonQuiz(questions, lesson);
   } catch (e) {
     quizArea.innerHTML = "";
