@@ -413,6 +413,20 @@
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px;"><span>3</span><span>20</span></div>
     </div>
     <div class="card" style="margin-bottom:1rem;">
+      <div class="section-label" style="margin-bottom:0.75rem;font-weight:500;font-size:15px;">☁️ GitHub Backup</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:0.75rem;line-height:1.6;">Saves your progress to a private GitHub Gist so it survives browser wipes. Paste your GitHub personal access token (gist scope only).</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="password" id="github-token-input" placeholder="ghp_..." style="flex:1;padding:10px 14px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;outline:none;"/>
+        <button class="btn-primary" id="save-github-token-btn">Save</button>
+      </div>
+      <div id="github-token-status" style="font-size:12px;margin-bottom:0.75rem;color:var(--text2);"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" id="gist-backup-btn" style="flex:1;">⬆️ Backup now</button>
+        <button class="btn-sm" id="gist-restore-btn" style="flex:1;">⬇️ Restore</button>
+      </div>
+      <div id="gist-status" style="font-size:12px;margin-top:8px;color:var(--text2);"></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;">
       <div class="section-label" style="margin-bottom:0.75rem;font-weight:500;font-size:15px;">⚠️ Danger Zone</div>
       <button class="btn-danger" id="settings-reset-btn" style="width:100%;">Reset all progress</button>
     </div>
@@ -1585,7 +1599,7 @@ initVoices();
 
 function speakWord() {
   if (!currentWord) return;
-  const utterance = new SpeechSynthesisUtterance(currentWord.jp);
+  const utterance = new SpeechSynthesisUtterance(currentWord.jp || currentWord.r);
   utterance.lang = "ja-JP";
   if (japaneseVoice) utterance.voice = japaneseVoice;
   utterance.rate = 0.9;
@@ -1675,7 +1689,7 @@ document.getElementById("diff-hard").onclick = () => {
   nextWord();
 };
 
-document.getElementById("summary-home-btn").onclick = () => { showScreen("home-screen"); renderHome(); };
+document.getElementById("summary-home-btn").onclick = () => { gistAutoBackup(); showScreen("home-screen"); renderHome(); };
 document.getElementById("summary-more-btn").onclick = () => {
   showScreen("quiz-screen");
   sessionCorrect = 0; sessionWrong = 0; sessionStreak = 0;
@@ -1738,6 +1752,11 @@ document.getElementById("settings-nav-btn").onclick = () => {
   const npd = getNewPerDay();
   document.getElementById("daily-words-slider").value = npd;
   document.getElementById("daily-words-value").textContent = npd;
+  const ghToken = getGithubToken();
+  document.getElementById("github-token-input").value = ghToken ? "••••••••••••••••" : "";
+  document.getElementById("github-token-status").textContent = ghToken ? "✓ Token saved" : "No token saved";
+  document.getElementById("github-token-status").style.color = ghToken ? "var(--text-success)" : "var(--text2)";
+  document.getElementById("gist-status").textContent = "";
   showScreen("settings-screen");
 };
 document.getElementById("daily-words-slider").oninput = function() {
@@ -1764,6 +1783,98 @@ document.getElementById("settings-reset-btn").onclick = () => {
     renderHome();
   }
 };
+
+// ── GitHub Gist Sync ──────────────────────────────────────────────────────────
+const GIST_TOKEN_KEY = "jlpt_github_token";
+const GIST_ID_KEY = "jlpt_gist_id";
+const GIST_FILENAME = "jlpt_journey_progress.json";
+
+function getGithubToken() { return localStorage.getItem(GIST_TOKEN_KEY) || ""; }
+
+function setGistStatus(msg, ok) {
+  const el = document.getElementById("gist-status");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok === true ? "var(--text-success)" : ok === false ? "var(--text-danger)" : "var(--text2)";
+}
+
+async function gistBackup() {
+  const token = getGithubToken();
+  if (!token) { setGistStatus("⚠️ No GitHub token saved.", false); return; }
+  setGistStatus("Saving...", null);
+  const payload = {
+    progress: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
+    vocab: JSON.parse(localStorage.getItem(VOCAB_KEY) || "{}"),
+    lessons_done: JSON.parse(localStorage.getItem("jlpt_lessons_done") || "{}"),
+    new_per_day: localStorage.getItem("jlpt_new_per_day") || "10",
+    saved_at: new Date().toISOString()
+  };
+  const existingId = localStorage.getItem(GIST_ID_KEY);
+  try {
+    const res = await fetch(existingId ? `https://api.github.com/gists/${existingId}` : "https://api.github.com/gists", {
+      method: existingId ? "PATCH" : "POST",
+      headers: { "Authorization": `token ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "JLPT Journey Progress Backup",
+        public: false,
+        files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
+      })
+    });
+    const data = await res.json();
+    if (data.id) {
+      localStorage.setItem(GIST_ID_KEY, data.id);
+      setGistStatus(`✓ Backed up at ${new Date().toLocaleTimeString()}`, true);
+    } else {
+      setGistStatus("✗ Backup failed — check your token.", false);
+    }
+  } catch (e) {
+    setGistStatus("✗ Network error during backup.", false);
+  }
+}
+
+async function gistRestore() {
+  const token = getGithubToken();
+  if (!token) { setGistStatus("⚠️ No GitHub token saved.", false); return; }
+  const existingId = localStorage.getItem(GIST_ID_KEY);
+  if (!existingId) { setGistStatus("⚠️ No backup found. Do a backup first.", false); return; }
+  if (!confirm("Restore progress from GitHub? This will overwrite your current local progress.")) return;
+  setGistStatus("Restoring...", null);
+  try {
+    const res = await fetch(`https://api.github.com/gists/${existingId}`, {
+      headers: { "Authorization": `token ${token}` }
+    });
+    const data = await res.json();
+    const content = data.files?.[GIST_FILENAME]?.content;
+    if (!content) { setGistStatus("✗ Could not read backup file.", false); return; }
+    const payload = JSON.parse(content);
+    if (payload.progress) localStorage.setItem(STORAGE_KEY, JSON.stringify(payload.progress));
+    if (payload.vocab) localStorage.setItem(VOCAB_KEY, JSON.stringify(payload.vocab));
+    if (payload.lessons_done) localStorage.setItem("jlpt_lessons_done", JSON.stringify(payload.lessons_done));
+    if (payload.new_per_day) localStorage.setItem("jlpt_new_per_day", payload.new_per_day);
+    progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    setGistStatus(`✓ Restored from ${new Date(payload.saved_at).toLocaleString()}`, true);
+    setTimeout(() => { showScreen("home-screen"); renderHome(); }, 1200);
+  } catch (e) {
+    setGistStatus("✗ Restore failed — check your token.", false);
+  }
+}
+
+async function gistAutoBackup() {
+  const token = getGithubToken();
+  if (!token) return; // silently skip if no token
+  await gistBackup();
+}
+
+document.getElementById("save-github-token-btn").onclick = () => {
+  const val = document.getElementById("github-token-input").value.trim();
+  if (val && !val.startsWith("•")) {
+    localStorage.setItem(GIST_TOKEN_KEY, val);
+    document.getElementById("github-token-status").textContent = "✓ Token saved!";
+    document.getElementById("github-token-status").style.color = "var(--text-success)";
+  }
+};
+document.getElementById("gist-backup-btn").onclick = gistBackup;
+document.getElementById("gist-restore-btn").onclick = gistRestore;
 
 // ── Leeches screen (FIX 5) ────────────────────────────────────────────────────
 document.getElementById("leeches-nav-btn").onclick = () => {
