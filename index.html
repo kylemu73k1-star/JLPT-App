@@ -420,6 +420,10 @@
         <button class="btn-primary" id="save-github-token-btn">Save</button>
       </div>
       <div id="github-token-status" style="font-size:12px;margin-bottom:0.75rem;color:var(--text2);"></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="text" id="gist-id-input" placeholder="Gist ID (optional — to link existing backup)" style="flex:1;padding:10px 14px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;outline:none;"/>
+        <button class="btn-sm" id="save-gist-id-btn">Link</button>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="btn-sm" id="gist-backup-btn" style="flex:1;">⬆️ Backup now</button>
         <button class="btn-sm" id="gist-restore-btn" style="flex:1;">⬇️ Restore</button>
@@ -1756,6 +1760,7 @@ document.getElementById("settings-nav-btn").onclick = () => {
   document.getElementById("github-token-input").value = ghToken ? "••••••••••••••••" : "";
   document.getElementById("github-token-status").textContent = ghToken ? "✓ Token saved" : "No token saved";
   document.getElementById("github-token-status").style.color = ghToken ? "var(--text-success)" : "var(--text2)";
+  document.getElementById("gist-id-input").value = localStorage.getItem(GIST_ID_KEY) || "";
   document.getElementById("gist-status").textContent = "";
   showScreen("settings-screen");
 };
@@ -1823,6 +1828,7 @@ async function gistBackup() {
     const data = await res.json();
     if (data.id) {
       localStorage.setItem(GIST_ID_KEY, data.id);
+      localStorage.setItem("jlpt_last_save", Date.now().toString());
       setGistStatus(`✓ Backed up at ${new Date().toLocaleTimeString()}`, true);
     } else {
       setGistStatus("✗ Backup failed — check your token.", false);
@@ -1871,6 +1877,13 @@ document.getElementById("save-github-token-btn").onclick = () => {
     localStorage.setItem(GIST_TOKEN_KEY, val);
     document.getElementById("github-token-status").textContent = "✓ Token saved!";
     document.getElementById("github-token-status").style.color = "var(--text-success)";
+  }
+};
+document.getElementById("save-gist-id-btn").onclick = () => {
+  const val = document.getElementById("gist-id-input").value.trim();
+  if (val) {
+    localStorage.setItem(GIST_ID_KEY, val);
+    setGistStatus("✓ Gist ID linked — tap Restore to pull your progress.", true);
   }
 };
 document.getElementById("gist-backup-btn").onclick = gistBackup;
@@ -2182,7 +2195,7 @@ function checkApiNotice() {
   document.getElementById("api-notice").style.display = getApiKey() ? "none" : "block";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   progress = loadProgress();
   const _savedVocab = loadSavedVocab();
   LEVELS.forEach(lv => {
@@ -2191,6 +2204,35 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   checkApiNotice();
   renderHome();
+
+  // Auto-restore from Gist on startup if token and gist ID are present
+  const token = getGithubToken();
+  const gistId = localStorage.getItem(GIST_ID_KEY);
+  if (token && gistId) {
+    try {
+      const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: { "Authorization": `token ${token}` }
+      });
+      const data = await res.json();
+      const content = data.files?.[GIST_FILENAME]?.content;
+      if (content) {
+        const payload = JSON.parse(content);
+        const savedAt = new Date(payload.saved_at);
+        const localProgress = loadProgress();
+        const hasLocalData = Object.keys(localProgress).length > 0;
+        // Only auto-restore if gist is newer than local or local is empty
+        const lastLocal = parseInt(localStorage.getItem("jlpt_last_save") || "0");
+        if (!hasLocalData || savedAt.getTime() > lastLocal) {
+          if (payload.progress) localStorage.setItem(STORAGE_KEY, JSON.stringify(payload.progress));
+          if (payload.vocab) localStorage.setItem(VOCAB_KEY, JSON.stringify(payload.vocab));
+          if (payload.lessons_done) localStorage.setItem("jlpt_lessons_done", JSON.stringify(payload.lessons_done));
+          if (payload.new_per_day) localStorage.setItem("jlpt_new_per_day", payload.new_per_day);
+          progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          renderHome();
+        }
+      }
+    } catch (e) { /* silently fail — offline or bad token */ }
+  }
 
   // PWA: register service worker with auto-update detection
   if ("serviceWorker" in navigator) {
