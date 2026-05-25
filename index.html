@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>JLPT Journey</title>
@@ -241,6 +242,41 @@
   .leech-jp { font-size: 22px; }
   .leech-info { font-size: 13px; color: var(--text2); }
   .leech-wrong { font-size: 12px; color: var(--text-danger); }
+
+  /* ── DRILL MODE ── */
+  .drill-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .drill-cat-btn { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; cursor: pointer; text-align: left; transition: all 0.15s; font-family: inherit; }
+  .drill-cat-btn:hover { background: var(--bg2); border-color: var(--border2); }
+  .drill-cat-name { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 3px; }
+  .drill-cat-count { font-size: 11px; color: var(--text3); }
+
+  .drill-stage-bar { font-size: 12px; color: var(--text2); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+  .drill-stage-pill { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: var(--bg-info); color: var(--text-info); border: 0.5px solid var(--border-info); }
+
+  .drill-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 2rem 1.5rem; text-align: center; margin-bottom: 1rem; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; }
+  .drill-new-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-info); font-weight: 600; }
+  .drill-kana { font-size: 52px; line-height: 1.2; letter-spacing: 0.04em; }
+  .drill-english { font-size: 18px; color: var(--text-info); font-weight: 500; }
+
+  .drill-type-row { display: flex; gap: 8px; margin-bottom: 0.75rem; }
+  .drill-type-row input { flex: 1; padding: 10px 14px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-size: 16px; background: var(--bg); color: var(--text); font-family: inherit; outline: none; letter-spacing: 0.04em; }
+  .drill-type-row input:focus { border-color: var(--border-info); }
+  .drill-type-row input.correct { border-color: var(--border-success); background: var(--bg-success); color: var(--text-success); }
+  .drill-type-row input.wrong { border-color: var(--border-danger); background: var(--bg-danger); color: var(--text-danger); }
+
+  .drill-progress { font-size: 12px; color: var(--text2); margin-bottom: 0.5rem; display: flex; justify-content: space-between; }
+  .drill-rolling { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; }
+  .drill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bg3); border: 0.5px solid var(--border2); }
+  .drill-dot.good { background: var(--text-success); border-color: var(--border-success); }
+  .drill-dot.bad { background: var(--text-danger); border-color: var(--border-danger); }
+
+  .drill-stage-complete { background: var(--bg-success); border: 0.5px solid var(--border-success); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1rem; display: none; }
+  .drill-stage-complete.show { display: block; }
+  .drill-stage-complete-title { font-size: 28px; margin-bottom: 0.25rem; }
+  .drill-stage-complete-sub { font-size: 13px; color: var(--text-success); margin-bottom: 1rem; line-height: 1.5; }
+
+  @keyframes drill-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+  .drill-shake { animation: drill-shake 0.35s ease; }
 </style>
 </head>
 <body>
@@ -252,7 +288,7 @@
       <h1>JLPT Journey</h1>
       <div class="top-bar-right">
         <button class="btn-sm" id="kanji-toggle-btn">漢字 OFF</button>
-        <button class="btn-sm" id="leeches-nav-btn">🔥 Leeches</button>
+        <button class="btn-sm" id="drill-nav-btn">💪 Drill</button>
         <button class="btn-sm" id="lessons-nav-btn">📚 Lessons</button>
         <button class="btn-sm" id="settings-nav-btn">⚙️</button>
         <button class="btn-sm btn-danger" id="reset-btn">Reset</button>
@@ -479,6 +515,65 @@
     </div>
   </div>
 
+  <!-- DRILL CATEGORY SCREEN -->
+  <div id="drill-cat-screen" class="screen">
+    <div class="top-bar">
+      <button class="btn-sm" id="drill-cat-back-btn">← Back</button>
+      <h2>💪 Brute Force Drill</h2>
+      <div></div>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.6;">See the kana, type the romaji. Each word needs 5 correct answers before moving on. Completely separate from your SRS progress.</p>
+    <div class="drill-cat-grid" id="drill-cat-grid"></div>
+  </div>
+
+  <!-- DRILL SCREEN -->
+  <div id="drill-screen" class="screen">
+    <div class="top-bar">
+      <button class="btn-sm" id="drill-back-btn">← Categories</button>
+      <h2 id="drill-title">Drill</h2>
+      <span id="drill-score" style="font-size:13px;color:var(--text2);">0 / 0</span>
+    </div>
+
+    <div class="drill-stage-bar">
+      <span id="drill-stage-label"></span>
+      <span class="drill-stage-pill" id="drill-stage-pill"></span>
+    </div>
+
+    <div class="drill-stage-complete" id="drill-stage-complete">
+      <div class="drill-stage-complete-title" id="drill-complete-title"></div>
+      <div class="drill-stage-complete-sub" id="drill-complete-sub"></div>
+      <div class="btn-row">
+        <button class="btn-primary" id="drill-next-stage-btn">Continue →</button>
+        <button class="btn-sm" id="drill-finish-btn">Finish session</button>
+      </div>
+    </div>
+
+    <div id="drill-card" class="drill-card">
+      <div class="drill-new-label" id="drill-new-label" style="display:none">✨ New word</div>
+      <div class="drill-kana" id="drill-kana"></div>
+      <div class="drill-english" id="drill-english" style="display:none"></div>
+    </div>
+
+    <div class="feedback" id="drill-feedback"></div>
+
+    <div class="drill-type-row" id="drill-type-row" style="display:none">
+      <input type="text" id="drill-input" placeholder="type romaji..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <button class="btn-primary" id="drill-check-btn">Check</button>
+    </div>
+
+    <div class="btn-row" id="drill-gotit-row" style="display:none">
+      <button class="btn-primary" id="drill-gotit-btn">Got it →</button>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <div class="drill-progress">
+        <span id="drill-progress-text"></span>
+        <span id="drill-score-text" style="color:var(--text2);"></span>
+      </div>
+      <div class="drill-rolling" id="drill-rolling"></div>
+    </div>
+  </div>
+
 </div>
 <script>
 const LEVELS = ["N5","N4","N3","N2","N1"];
@@ -496,251 +591,723 @@ function getApiKey() { return localStorage.getItem("jlpt_api_key") || ""; }
 
 const BUILT_IN = {
   N5:[
-    {jp:"水",r:"みず",romaji:"mizu",en:"water",type:"noun"},{jp:"火",r:"ひ",romaji:"hi",en:"fire",type:"noun"},
-    {jp:"山",r:"やま",romaji:"yama",en:"mountain",type:"noun"},{jp:"川",r:"かわ",romaji:"kawa",en:"river",type:"noun"},
-    {jp:"木",r:"き",romaji:"ki",en:"tree / wood",type:"noun"},{jp:"土",r:"つち",romaji:"tsuchi",en:"earth / soil",type:"noun"},
-    {jp:"空",r:"そら",romaji:"sora",en:"sky",type:"noun"},{jp:"花",r:"はな",romaji:"hana",en:"flower",type:"noun"},
-    {jp:"犬",r:"いぬ",romaji:"inu",en:"dog",type:"noun"},{jp:"猫",r:"ねこ",romaji:"neko",en:"cat",type:"noun"},
-    {jp:"本",r:"ほん",romaji:"hon",en:"book",type:"noun"},{jp:"車",r:"くるま",romaji:"kuruma",en:"car",type:"noun"},
-    {jp:"家",r:"いえ",romaji:"ie",en:"house / home",type:"noun"},{jp:"人",r:"ひと",romaji:"hito",en:"person",type:"noun"},
-    {jp:"子",r:"こ",romaji:"ko",en:"child",type:"noun"},{jp:"目",r:"め",romaji:"me",en:"eye",type:"noun"},
-    {jp:"口",r:"くち",romaji:"kuchi",en:"mouth",type:"noun"},{jp:"手",r:"て",romaji:"te",en:"hand",type:"noun"},
-    {jp:"足",r:"あし",romaji:"ashi",en:"foot / leg",type:"noun"},{jp:"頭",r:"あたま",romaji:"atama",en:"head",type:"noun"},
-    {jp:"耳",r:"みみ",romaji:"mimi",en:"ear",type:"noun"},{jp:"鼻",r:"はな",romaji:"hana",en:"nose",type:"noun"},
-    {jp:"歯",r:"は",romaji:"ha",en:"tooth",type:"noun"},{jp:"髪",r:"かみ",romaji:"kami",en:"hair",type:"noun"},
-    {jp:"体",r:"からだ",romaji:"karada",en:"body",type:"noun"},{jp:"心",r:"こころ",romaji:"kokoro",en:"heart / mind",type:"noun"},
-    {jp:"声",r:"こえ",romaji:"koe",en:"voice",type:"noun"},{jp:"顔",r:"かお",romaji:"kao",en:"face",type:"noun"},
-    {jp:"食べる",r:"たべる",romaji:"taberu",en:"to eat",type:"verb"},{jp:"飲む",r:"のむ",romaji:"nomu",en:"to drink",type:"verb"},
-    {jp:"見る",r:"みる",romaji:"miru",en:"to see / watch",type:"verb"},{jp:"聞く",r:"きく",romaji:"kiku",en:"to listen / ask",type:"verb"},
-    {jp:"行く",r:"いく",romaji:"iku",en:"to go",type:"verb"},{jp:"来る",r:"くる",romaji:"kuru",en:"to come",type:"verb"},
-    {jp:"帰る",r:"かえる",romaji:"kaeru",en:"to return home",type:"verb"},{jp:"買う",r:"かう",romaji:"kau",en:"to buy",type:"verb"},
-    {jp:"読む",r:"よむ",romaji:"yomu",en:"to read",type:"verb"},{jp:"書く",r:"かく",romaji:"kaku",en:"to write",type:"verb"},
-    {jp:"話す",r:"はなす",romaji:"hanasu",en:"to speak",type:"verb"},{jp:"起きる",r:"おきる",romaji:"okiru",en:"to wake up",type:"verb"},
-    {jp:"寝る",r:"ねる",romaji:"neru",en:"to sleep",type:"verb"},{jp:"走る",r:"はしる",romaji:"hashiru",en:"to run",type:"verb"},
-    {jp:"歩く",r:"あるく",romaji:"aruku",en:"to walk",type:"verb"},{jp:"立つ",r:"たつ",romaji:"tatsu",en:"to stand",type:"verb"},
-    {jp:"座る",r:"すわる",romaji:"suwaru",en:"to sit",type:"verb"},{jp:"待つ",r:"まつ",romaji:"matsu",en:"to wait",type:"verb"},
-    {jp:"会う",r:"あう",romaji:"au",en:"to meet",type:"verb"},{jp:"使う",r:"つかう",romaji:"tsukau",en:"to use",type:"verb"},
-    {jp:"作る",r:"つくる",romaji:"tsukuru",en:"to make",type:"verb"},{jp:"開ける",r:"あける",romaji:"akeru",en:"to open",type:"verb"},
-    {jp:"閉める",r:"しめる",romaji:"shimeru",en:"to close",type:"verb"},{jp:"入る",r:"はいる",romaji:"hairu",en:"to enter",type:"verb"},
-    {jp:"出る",r:"でる",romaji:"deru",en:"to exit / leave",type:"verb"},{jp:"上がる",r:"あがる",romaji:"agaru",en:"to go up",type:"verb"},
-    {jp:"下がる",r:"さがる",romaji:"sagaru",en:"to go down",type:"verb"},{jp:"切る",r:"きる",romaji:"kiru",en:"to cut",type:"verb"},
-    {jp:"着る",r:"きる",romaji:"kiru",en:"to wear (top)",type:"verb"},{jp:"脱ぐ",r:"ぬぐ",romaji:"nugu",en:"to take off",type:"verb"},
-    {jp:"持つ",r:"もつ",romaji:"motsu",en:"to hold / have",type:"verb"},{jp:"置く",r:"おく",romaji:"oku",en:"to put / place",type:"verb"},
-    {jp:"もらう",r:"もらう",romaji:"morau",en:"to receive",type:"verb"},{jp:"あげる",r:"あげる",romaji:"ageru",en:"to give",type:"verb"},
-    {jp:"くれる",r:"くれる",romaji:"kureru",en:"to give (to me)",type:"verb"},{jp:"貸す",r:"かす",romaji:"kasu",en:"to lend",type:"verb"},
-    {jp:"借りる",r:"かりる",romaji:"kariru",en:"to borrow",type:"verb"},{jp:"教える",r:"おしえる",romaji:"oshieru",en:"to teach / tell",type:"verb"},
-    {jp:"習う",r:"ならう",romaji:"narau",en:"to learn",type:"verb"},{jp:"働く",r:"はたらく",romaji:"hataraku",en:"to work",type:"verb"},
-    {jp:"休む",r:"やすむ",romaji:"yasumu",en:"to rest",type:"verb"},{jp:"遊ぶ",r:"あそぶ",romaji:"asobu",en:"to play",type:"verb"},
-    {jp:"泳ぐ",r:"およぐ",romaji:"oyogu",en:"to swim",type:"verb"},{jp:"飛ぶ",r:"とぶ",romaji:"tobu",en:"to fly / jump",type:"verb"},
-    {jp:"乗る",r:"のる",romaji:"noru",en:"to ride / board",type:"verb"},{jp:"降りる",r:"おりる",romaji:"oriru",en:"to get off",type:"verb"},
-    {jp:"大きい",r:"おおきい",romaji:"ookii",en:"big",type:"adj"},{jp:"小さい",r:"ちいさい",romaji:"chiisai",en:"small",type:"adj"},
-    {jp:"高い",r:"たかい",romaji:"takai",en:"tall / expensive",type:"adj"},{jp:"安い",r:"やすい",romaji:"yasui",en:"cheap",type:"adj"},
-    {jp:"新しい",r:"あたらしい",romaji:"atarashii",en:"new",type:"adj"},{jp:"古い",r:"ふるい",romaji:"furui",en:"old",type:"adj"},
-    {jp:"長い",r:"ながい",romaji:"nagai",en:"long",type:"adj"},{jp:"短い",r:"みじかい",romaji:"mijikai",en:"short",type:"adj"},
-    {jp:"白い",r:"しろい",romaji:"shiroi",en:"white",type:"adj"},{jp:"黒い",r:"くろい",romaji:"kuroi",en:"black",type:"adj"},
-    {jp:"赤い",r:"あかい",romaji:"akai",en:"red",type:"adj"},{jp:"青い",r:"あおい",romaji:"aoi",en:"blue / green",type:"adj"},
-    {jp:"黄色い",r:"きいろい",romaji:"kiiroi",en:"yellow",type:"adj"},{jp:"茶色い",r:"ちゃいろい",romaji:"chairoi",en:"brown",type:"adj"},
-    {jp:"暑い",r:"あつい",romaji:"atsui",en:"hot (weather)",type:"adj"},{jp:"寒い",r:"さむい",romaji:"samui",en:"cold (weather)",type:"adj"},
-    {jp:"熱い",r:"あつい",romaji:"atsui",en:"hot (to touch)",type:"adj"},{jp:"冷たい",r:"つめたい",romaji:"tsumetai",en:"cold (to touch)",type:"adj"},
-    {jp:"良い",r:"よい・いい",romaji:"yoi / ii",en:"good",type:"adj"},{jp:"悪い",r:"わるい",romaji:"warui",en:"bad",type:"adj"},
-    {jp:"早い",r:"はやい",romaji:"hayai",en:"early / fast",type:"adj"},{jp:"遅い",r:"おそい",romaji:"osoi",en:"late / slow",type:"adj"},
-    {jp:"多い",r:"おおい",romaji:"ooi",en:"many / much",type:"adj"},{jp:"少ない",r:"すくない",romaji:"sukunai",en:"few / little",type:"adj"},
-    {jp:"広い",r:"ひろい",romaji:"hiroi",en:"wide / spacious",type:"adj"},{jp:"狭い",r:"せまい",romaji:"semai",en:"narrow / small",type:"adj"},
-    {jp:"重い",r:"おもい",romaji:"omoi",en:"heavy",type:"adj"},{jp:"軽い",r:"かるい",romaji:"karui",en:"light",type:"adj"},
-    {jp:"強い",r:"つよい",romaji:"tsuyoi",en:"strong",type:"adj"},{jp:"弱い",r:"よわい",romaji:"yowai",en:"weak",type:"adj"},
-    {jp:"難しい",r:"むずかしい",romaji:"muzukashii",en:"difficult",type:"adj"},{jp:"易しい",r:"やさしい",romaji:"yasashii",en:"easy",type:"adj"},
-    {jp:"面白い",r:"おもしろい",romaji:"omoshiroi",en:"interesting / funny",type:"adj"},{jp:"つまらない",r:"つまらない",romaji:"tsumaranai",en:"boring",type:"adj"},
-    {jp:"嬉しい",r:"うれしい",romaji:"ureshii",en:"happy / glad",type:"adj"},{jp:"悲しい",r:"かなしい",romaji:"kanashii",en:"sad",type:"adj"},
-    {jp:"怖い",r:"こわい",romaji:"kowai",en:"scary",type:"adj"},{jp:"痛い",r:"いたい",romaji:"itai",en:"painful",type:"adj"},
-    {jp:"眠い",r:"ねむい",romaji:"nemui",en:"sleepy",type:"adj"},{jp:"忙しい",r:"いそがしい",romaji:"isogashii",en:"busy",type:"adj"},
-    {jp:"暇",r:"ひま",romaji:"hima",en:"free time / bored",type:"noun"},{jp:"好き",r:"すき",romaji:"suki",en:"like / fond of",type:"adj"},
-    {jp:"嫌い",r:"きらい",romaji:"kirai",en:"dislike",type:"adj"},{jp:"上手",r:"じょうず",romaji:"jouzu",en:"skilled / good at",type:"adj"},
-    {jp:"下手",r:"へた",romaji:"heta",en:"unskilled / bad at",type:"adj"},{jp:"有名",r:"ゆうめい",romaji:"yuumei",en:"famous",type:"adj"},
-    {jp:"大切",r:"たいせつ",romaji:"taisetsu",en:"important / precious",type:"adj"},{jp:"大丈夫",r:"だいじょうぶ",romaji:"daijoubu",en:"okay / all right",type:"adj"},
-    {jp:"一",r:"いち",romaji:"ichi",en:"one",type:"noun"},{jp:"二",r:"に",romaji:"ni",en:"two",type:"noun"},
-    {jp:"三",r:"さん",romaji:"san",en:"three",type:"noun"},{jp:"四",r:"し・よん",romaji:"shi / yon",en:"four",type:"noun"},
-    {jp:"五",r:"ご",romaji:"go",en:"five",type:"noun"},{jp:"六",r:"ろく",romaji:"roku",en:"six",type:"noun"},
-    {jp:"七",r:"しち・なな",romaji:"shichi / nana",en:"seven",type:"noun"},{jp:"八",r:"はち",romaji:"hachi",en:"eight",type:"noun"},
-    {jp:"九",r:"く・きゅう",romaji:"ku / kyuu",en:"nine",type:"noun"},{jp:"十",r:"じゅう",romaji:"juu",en:"ten",type:"noun"},
-    {jp:"百",r:"ひゃく",romaji:"hyaku",en:"hundred",type:"noun"},{jp:"千",r:"せん",romaji:"sen",en:"thousand",type:"noun"},
+    {jp:"今",r:"いま",romaji:"ima",en:"now",type:"noun"},
+    {jp:"今日",r:"きょう",romaji:"kyou",en:"today",type:"noun"},
+    {jp:"明日",r:"あした",romaji:"ashita",en:"tomorrow",type:"noun"},
+    {jp:"昨日",r:"きのう",romaji:"kinou",en:"yesterday",type:"noun"},
+    {jp:"これ",r:"これ",romaji:"kore",en:"this (near me)",type:"noun"},
+    {jp:"それ",r:"それ",romaji:"sore",en:"that (near you)",type:"noun"},
+    {jp:"あれ",r:"あれ",romaji:"are",en:"that (over there)",type:"noun"},
+    {jp:"ここ",r:"ここ",romaji:"koko",en:"here",type:"noun"},
+    {jp:"そこ",r:"そこ",romaji:"soko",en:"there",type:"noun"},
+    {jp:"あそこ",r:"あそこ",romaji:"asoko",en:"over there",type:"noun"},
+    {jp:"私",r:"わたし",romaji:"watashi",en:"I / me",type:"noun"},
+    {jp:"あなた",r:"あなた",romaji:"anata",en:"you",type:"noun"},
+    {jp:"わたし",r:"わたし",romaji:"watashi",en:"I / me",type:"noun"},
+    {jp:"食べる",r:"たべる",romaji:"taberu",en:"to eat",type:"verb"},
+    {jp:"飲む",r:"のむ",romaji:"nomu",en:"to drink",type:"verb"},
+    {jp:"見る",r:"みる",romaji:"miru",en:"to see / watch",type:"verb"},
+    {jp:"聞く",r:"きく",romaji:"kiku",en:"to listen / ask",type:"verb"},
+    {jp:"行く",r:"いく",romaji:"iku",en:"to go",type:"verb"},
+    {jp:"来る",r:"くる",romaji:"kuru",en:"to come",type:"verb"},
+    {jp:"帰る",r:"かえる",romaji:"kaeru",en:"to return home",type:"verb"},
+    {jp:"買う",r:"かう",romaji:"kau",en:"to buy",type:"verb"},
+    {jp:"読む",r:"よむ",romaji:"yomu",en:"to read",type:"verb"},
+    {jp:"書く",r:"かく",romaji:"kaku",en:"to write",type:"verb"},
+    {jp:"話す",r:"はなす",romaji:"hanasu",en:"to speak",type:"verb"},
+    {jp:"起きる",r:"おきる",romaji:"okiru",en:"to wake up",type:"verb"},
+    {jp:"寝る",r:"ねる",romaji:"neru",en:"to sleep",type:"verb"},
+    {jp:"待つ",r:"まつ",romaji:"matsu",en:"to wait",type:"verb"},
+    {jp:"会う",r:"あう",romaji:"au",en:"to meet",type:"verb"},
+    {jp:"使う",r:"つかう",romaji:"tsukau",en:"to use",type:"verb"},
+    {jp:"作る",r:"つくる",romaji:"tsukuru",en:"to make",type:"verb"},
+    {jp:"入る",r:"はいる",romaji:"hairu",en:"to enter",type:"verb"},
+    {jp:"出る",r:"でる",romaji:"deru",en:"to exit / leave",type:"verb"},
+    {jp:"乗る",r:"のる",romaji:"noru",en:"to ride / board",type:"verb"},
+    {jp:"分かる",r:"わかる",romaji:"wakaru",en:"to understand",type:"verb"},
+    {jp:"言う",r:"いう",romaji:"iu",en:"to say",type:"verb"},
+    {jp:"変える",r:"かえる",romaji:"kaeru",en:"to change",type:"verb"},
+    {jp:"合う",r:"あう",romaji:"au",en:"to match / fit / suit",type:"verb"},
+    {jp:"いる",r:"いる",romaji:"iru",en:"to exist (animate)",type:"verb"},
+    {jp:"ある",r:"ある",romaji:"aru",en:"to exist (inanimate)",type:"verb"},
+    {jp:"する",r:"する",romaji:"suru",en:"to do",type:"verb"},
+    {jp:"くる",r:"くる",romaji:"kuru",en:"to come",type:"verb"},
+    {jp:"いく",r:"いく",romaji:"iku",en:"to go",type:"verb"},
+    {jp:"できる",r:"できる",romaji:"でkiru",en:"to be able to / to be completed",type:"verb"},
+    {jp:"やる",r:"やる",romaji:"yaru",en:"to do / to give",type:"verb"},
+    {jp:"なる",r:"なる",romaji:"なる",en:"to become",type:"verb"},
+    {jp:"大きい",r:"おおきい",romaji:"ookii",en:"big",type:"adj"},
+    {jp:"小さい",r:"ちいさい",romaji:"chiisai",en:"small",type:"adj"},
+    {jp:"高い",r:"たかい",romaji:"takai",en:"tall / expensive",type:"adj"},
+    {jp:"安い",r:"やすい",romaji:"yasui",en:"cheap",type:"adj"},
+    {jp:"新しい",r:"あたらしい",romaji:"atarashii",en:"new",type:"adj"},
+    {jp:"古い",r:"ふるい",romaji:"furui",en:"old",type:"adj"},
+    {jp:"暑い",r:"あつい",romaji:"atsui",en:"hot (weather)",type:"adj"},
+    {jp:"寒い",r:"さむい",romaji:"samui",en:"cold (weather)",type:"adj"},
+    {jp:"熱い",r:"あつい",romaji:"atsui",en:"hot (to touch)",type:"adj"},
+    {jp:"悪い",r:"わるい",romaji:"warui",en:"bad",type:"adj"},
+    {jp:"早い",r:"はやい",romaji:"hayai",en:"early / fast",type:"adj"},
+    {jp:"遅い",r:"おそい",romaji:"osoi",en:"late / slow",type:"adj"},
+    {jp:"速い",r:"はやい",romaji:"hayai",en:"fast / quick",type:"adj"},
+    {jp:"あの",r:"あの",romaji:"ano",en:"that (over there)",type:"adj"},
+    {jp:"いい",r:"いい",romaji:"ii",en:"good / fine",type:"adj"},
+    {jp:"よい",r:"いい",romaji:"ii",en:"good / fine",type:"adj"},
+    {jp:"この",r:"この",romaji:"kono",en:"this",type:"adj"},
+    {jp:"その",r:"その",romaji:"sono",en:"that",type:"adj"},
+    {jp:"おはよう",r:"おはよう",romaji:"ohayou",en:"good morning (casual)",type:"phrase"},
+    {jp:"こんにちは",r:"こんにちは",romaji:"konnichiwa",en:"hello / good afternoon",type:"phrase"},
+    {jp:"ありがとう",r:"ありがとう",romaji:"arigatou",en:"thank you (casual)",type:"phrase"},
+    {jp:"すみません",r:"すみません",romaji:"sumimasen",en:"excuse me / sorry",type:"phrase"},
+    {jp:"もう",r:"もう",romaji:"mou",en:"already / anymore",type:"adv"},
+    {jp:"まだ",r:"まだ",romaji:"mada",en:"still / not yet",type:"adv"},
+    {jp:"また",r:"また",romaji:"mata",en:"again / also",type:"adv"},
+    {jp:"もっと",r:"もっと",romaji:"motto",en:"more",type:"adv"},
+    {jp:"とても",r:"とても",romaji:"totemo",en:"very / extremely",type:"adv"},
+    {jp:"いつも",r:"いつも",romaji:"itsumo",en:"always / usually",type:"adv"},
+    {jp:"戸",r:"と",romaji:"と",en:"(and / with particle)",type:"particle"},
+    {jp:"より",r:"より",romaji:"より",en:"than / from",type:"particle"},
+    {jp:"ほう",r:"より",romaji:"より",en:"than / from",type:"particle"},
+    {jp:"水",r:"みず",romaji:"mizu",en:"water",type:"noun"},
+    {jp:"火",r:"ひ",romaji:"hi",en:"fire",type:"noun"},
+    {jp:"山",r:"やま",romaji:"yama",en:"mountain",type:"noun"},
+    {jp:"川",r:"かわ",romaji:"kawa",en:"river",type:"noun"},
+    {jp:"木",r:"き",romaji:"ki",en:"tree / wood",type:"noun"},
+    {jp:"土",r:"つち",romaji:"tsuchi",en:"earth / soil",type:"noun"},
+    {jp:"空",r:"そら",romaji:"sora",en:"sky",type:"noun"},
+    {jp:"花",r:"はな",romaji:"hana",en:"flower",type:"noun"},
+    {jp:"犬",r:"いぬ",romaji:"inu",en:"dog",type:"noun"},
+    {jp:"猫",r:"ねこ",romaji:"neko",en:"cat",type:"noun"},
+    {jp:"本",r:"ほん",romaji:"hon",en:"book",type:"noun"},
+    {jp:"車",r:"くるま",romaji:"kuruma",en:"car",type:"noun"},
+    {jp:"家",r:"いえ",romaji:"ie",en:"house / home",type:"noun"},
+    {jp:"人",r:"ひと",romaji:"hito",en:"person",type:"noun"},
+    {jp:"子",r:"こ",romaji:"ko",en:"child",type:"noun"},
+    {jp:"目",r:"め",romaji:"me",en:"eye",type:"noun"},
+    {jp:"口",r:"くち",romaji:"kuchi",en:"mouth",type:"noun"},
+    {jp:"手",r:"て",romaji:"te",en:"hand",type:"noun"},
+    {jp:"足",r:"あし",romaji:"ashi",en:"foot / leg",type:"noun"},
+    {jp:"頭",r:"あたま",romaji:"atama",en:"head",type:"noun"},
+    {jp:"耳",r:"みみ",romaji:"mimi",en:"ear",type:"noun"},
+    {jp:"鼻",r:"はな",romaji:"hana",en:"nose",type:"noun"},
+    {jp:"歯",r:"は",romaji:"ha",en:"tooth",type:"noun"},
+    {jp:"髪",r:"かみ",romaji:"kami",en:"hair",type:"noun"},
+    {jp:"体",r:"からだ",romaji:"karada",en:"body",type:"noun"},
+    {jp:"心",r:"こころ",romaji:"kokoro",en:"heart / mind",type:"noun"},
+    {jp:"声",r:"こえ",romaji:"koe",en:"voice",type:"noun"},
+    {jp:"顔",r:"かお",romaji:"kao",en:"face",type:"noun"},
+    {jp:"暇",r:"ひま",romaji:"hima",en:"free time / bored",type:"noun"},
+    {jp:"一",r:"いち",romaji:"ichi",en:"one",type:"noun"},
+    {jp:"二",r:"に",romaji:"ni",en:"two",type:"noun"},
+    {jp:"三",r:"さん",romaji:"san",en:"three",type:"noun"},
+    {jp:"四",r:"し・よん",romaji:"shi / yon",en:"four",type:"noun"},
+    {jp:"五",r:"ご",romaji:"go",en:"five",type:"noun"},
+    {jp:"六",r:"ろく",romaji:"roku",en:"six",type:"noun"},
+    {jp:"七",r:"しち・なな",romaji:"shichi / nana",en:"seven",type:"noun"},
+    {jp:"八",r:"はち",romaji:"hachi",en:"eight",type:"noun"},
+    {jp:"九",r:"く・きゅう",romaji:"ku / kyuu",en:"nine",type:"noun"},
+    {jp:"十",r:"じゅう",romaji:"juu",en:"ten",type:"noun"},
+    {jp:"百",r:"ひゃく",romaji:"hyaku",en:"hundred",type:"noun"},
+    {jp:"千",r:"せん",romaji:"sen",en:"thousand",type:"noun"},
     {jp:"万",r:"まん",romaji:"man",en:"ten thousand",type:"noun"},
-    {jp:"日",r:"にち・ひ",romaji:"nichi / hi",en:"day / sun",type:"noun"},{jp:"月",r:"つき・げつ",romaji:"tsuki / getsu",en:"moon / month",type:"noun"},
-    {jp:"年",r:"ねん・とし",romaji:"nen / toshi",en:"year",type:"noun"},{jp:"今",r:"いま",romaji:"ima",en:"now",type:"noun"},
-    {jp:"今日",r:"きょう",romaji:"kyou",en:"today",type:"noun"},{jp:"明日",r:"あした",romaji:"ashita",en:"tomorrow",type:"noun"},
-    {jp:"昨日",r:"きのう",romaji:"kinou",en:"yesterday",type:"noun"},{jp:"今週",r:"こんしゅう",romaji:"konshuu",en:"this week",type:"noun"},
-    {jp:"来週",r:"らいしゅう",romaji:"raishuu",en:"next week",type:"noun"},{jp:"先週",r:"せんしゅう",romaji:"senshuu",en:"last week",type:"noun"},
-    {jp:"今年",r:"ことし",romaji:"kotoshi",en:"this year",type:"noun"},{jp:"来年",r:"らいねん",romaji:"rainen",en:"next year",type:"noun"},
-    {jp:"去年",r:"きょねん",romaji:"kyonen",en:"last year",type:"noun"},{jp:"毎日",r:"まいにち",romaji:"mainichi",en:"every day",type:"noun"},
-    {jp:"毎週",r:"まいしゅう",romaji:"maishuu",en:"every week",type:"noun"},{jp:"毎月",r:"まいつき",romaji:"maitsuki",en:"every month",type:"noun"},
-    {jp:"朝",r:"あさ",romaji:"asa",en:"morning",type:"noun"},{jp:"昼",r:"ひる",romaji:"hiru",en:"noon / daytime",type:"noun"},
-    {jp:"夜",r:"よる",romaji:"yoru",en:"night",type:"noun"},{jp:"夕方",r:"ゆうがた",romaji:"yuugata",en:"evening",type:"noun"},
-    {jp:"午前",r:"ごぜん",romaji:"gozen",en:"AM / morning",type:"noun"},{jp:"午後",r:"ごご",romaji:"gogo",en:"PM / afternoon",type:"noun"},
-    {jp:"何",r:"なに・なん",romaji:"nani / nan",en:"what",type:"noun"},{jp:"誰",r:"だれ",romaji:"dare",en:"who",type:"noun"},
-    {jp:"どこ",r:"どこ",romaji:"doko",en:"where",type:"noun"},{jp:"いつ",r:"いつ",romaji:"itsu",en:"when",type:"noun"},
-    {jp:"なぜ",r:"なぜ",romaji:"naze",en:"why",type:"noun"},{jp:"どう",r:"どう",romaji:"dou",en:"how",type:"noun"},
-    {jp:"いくら",r:"いくら",romaji:"ikura",en:"how much",type:"noun"},{jp:"いくつ",r:"いくつ",romaji:"ikutsu",en:"how many",type:"noun"},
-    {jp:"どれ",r:"どれ",romaji:"dore",en:"which one",type:"noun"},{jp:"どの",r:"どの",romaji:"dono",en:"which",type:"noun"},
-    {jp:"これ",r:"これ",romaji:"kore",en:"this (near me)",type:"noun"},{jp:"それ",r:"それ",romaji:"sore",en:"that (near you)",type:"noun"},
-    {jp:"あれ",r:"あれ",romaji:"are",en:"that (over there)",type:"noun"},{jp:"ここ",r:"ここ",romaji:"koko",en:"here",type:"noun"},
-    {jp:"そこ",r:"そこ",romaji:"soko",en:"there",type:"noun"},{jp:"あそこ",r:"あそこ",romaji:"asoko",en:"over there",type:"noun"},
-    {jp:"私",r:"わたし",romaji:"watashi",en:"I / me",type:"noun"},{jp:"あなた",r:"あなた",romaji:"anata",en:"you",type:"noun"},
-    {jp:"彼",r:"かれ",romaji:"kare",en:"he / boyfriend",type:"noun"},{jp:"彼女",r:"かのじょ",romaji:"kanojo",en:"she / girlfriend",type:"noun"},
-    {jp:"私たち",r:"わたしたち",romaji:"watashitachi",en:"we / us",type:"noun"},{jp:"皆",r:"みんな",romaji:"minna",en:"everyone",type:"noun"},
-    {jp:"父",r:"ちち",romaji:"chichi",en:"(my) father",type:"noun"},{jp:"母",r:"はは",romaji:"haha",en:"(my) mother",type:"noun"},
-    {jp:"兄",r:"あに",romaji:"ani",en:"(my) older brother",type:"noun"},{jp:"姉",r:"あね",romaji:"ane",en:"(my) older sister",type:"noun"},
-    {jp:"弟",r:"おとうと",romaji:"otouto",en:"(my) younger brother",type:"noun"},{jp:"妹",r:"いもうと",romaji:"imouto",en:"(my) younger sister",type:"noun"},
-    {jp:"お父さん",r:"おとうさん",romaji:"otousan",en:"father (polite)",type:"noun"},{jp:"お母さん",r:"おかあさん",romaji:"okaasan",en:"mother (polite)",type:"noun"},
-    {jp:"友達",r:"ともだち",romaji:"tomodachi",en:"friend",type:"noun"},{jp:"先生",r:"せんせい",romaji:"sensei",en:"teacher",type:"noun"},
-    {jp:"学生",r:"がくせい",romaji:"gakusei",en:"student",type:"noun"},{jp:"会社員",r:"かいしゃいん",romaji:"kaishain",en:"company employee",type:"noun"},
-    {jp:"学校",r:"がっこう",romaji:"gakkou",en:"school",type:"noun"},{jp:"大学",r:"だいがく",romaji:"daigaku",en:"university",type:"noun"},
-    {jp:"会社",r:"かいしゃ",romaji:"kaisha",en:"company",type:"noun"},{jp:"病院",r:"びょういん",romaji:"byouin",en:"hospital",type:"noun"},
-    {jp:"銀行",r:"ぎんこう",romaji:"ginkou",en:"bank",type:"noun"},{jp:"郵便局",r:"ゆうびんきょく",romaji:"yuubinkyoku",en:"post office",type:"noun"},
-    {jp:"図書館",r:"としょかん",romaji:"toshokan",en:"library",type:"noun"},{jp:"駅",r:"えき",romaji:"eki",en:"station",type:"noun"},
-    {jp:"空港",r:"くうこう",romaji:"kuukou",en:"airport",type:"noun"},{jp:"公園",r:"こうえん",romaji:"kouen",en:"park",type:"noun"},
-    {jp:"店",r:"みせ",romaji:"mise",en:"shop / store",type:"noun"},{jp:"レストラン",r:"レストラン",romaji:"resutoran",en:"restaurant",type:"noun"},
-    {jp:"スーパー",r:"スーパー",romaji:"suupaa",en:"supermarket",type:"noun"},{jp:"ホテル",r:"ホテル",romaji:"hoteru",en:"hotel",type:"noun"},
-    {jp:"部屋",r:"へや",romaji:"heya",en:"room",type:"noun"},{jp:"台所",r:"だいどころ",romaji:"daidokoro",en:"kitchen",type:"noun"},
-    {jp:"トイレ",r:"トイレ",romaji:"toire",en:"toilet / bathroom",type:"noun"},{jp:"窓",r:"まど",romaji:"mado",en:"window",type:"noun"},
-    {jp:"ドア",r:"ドア",romaji:"doa",en:"door",type:"noun"},{jp:"机",r:"つくえ",romaji:"tsukue",en:"desk",type:"noun"},
-    {jp:"椅子",r:"いす",romaji:"isu",en:"chair",type:"noun"},{jp:"テーブル",r:"テーブル",romaji:"teeburu",en:"table",type:"noun"},
-    {jp:"電話",r:"でんわ",romaji:"denwa",en:"telephone",type:"noun"},{jp:"テレビ",r:"テレビ",romaji:"terebi",en:"television",type:"noun"},
-    {jp:"ラジオ",r:"ラジオ",romaji:"rajio",en:"radio",type:"noun"},{jp:"新聞",r:"しんぶん",romaji:"shinbun",en:"newspaper",type:"noun"},
-    {jp:"雑誌",r:"ざっし",romaji:"zasshi",en:"magazine",type:"noun"},{jp:"手紙",r:"てがみ",romaji:"tegami",en:"letter",type:"noun"},
-    {jp:"写真",r:"しゃしん",romaji:"shashin",en:"photograph",type:"noun"},{jp:"映画",r:"えいが",romaji:"eiga",en:"movie",type:"noun"},
-    {jp:"音楽",r:"おんがく",romaji:"ongaku",en:"music",type:"noun"},{jp:"スポーツ",r:"スポーツ",romaji:"supootsu",en:"sports",type:"noun"},
-    {jp:"料理",r:"りょうり",romaji:"ryouri",en:"cooking / cuisine",type:"noun"},{jp:"旅行",r:"りょこう",romaji:"ryokou",en:"travel",type:"noun"},
-    {jp:"食べ物",r:"たべもの",romaji:"tabemono",en:"food",type:"noun"},{jp:"飲み物",r:"のみもの",romaji:"nomimono",en:"drink / beverage",type:"noun"},
-    {jp:"ご飯",r:"ごはん",romaji:"gohan",en:"rice / meal",type:"noun"},{jp:"パン",r:"パン",romaji:"pan",en:"bread",type:"noun"},
-    {jp:"肉",r:"にく",romaji:"niku",en:"meat",type:"noun"},{jp:"魚",r:"さかな",romaji:"sakana",en:"fish",type:"noun"},
-    {jp:"野菜",r:"やさい",romaji:"yasai",en:"vegetables",type:"noun"},{jp:"果物",r:"くだもの",romaji:"kudamono",en:"fruit",type:"noun"},
-    {jp:"卵",r:"たまご",en:"egg",type:"noun"},{jp:"牛乳",r:"ぎゅうにゅう",en:"milk",type:"noun"},
-    {jp:"お茶",r:"おちゃ",en:"tea",type:"noun"},{jp:"コーヒー",r:"コーヒー",en:"coffee",type:"noun"},
-    {jp:"ビール",r:"ビール",en:"beer",type:"noun"},{jp:"服",r:"ふく",en:"clothes",type:"noun"},
-    {jp:"靴",r:"くつ",en:"shoes",type:"noun"},{jp:"帽子",r:"ぼうし",en:"hat / cap",type:"noun"},
-    {jp:"時計",r:"とけい",en:"clock / watch",type:"noun"},{jp:"鍵",r:"かぎ",en:"key",type:"noun"},
-    {jp:"財布",r:"さいふ",en:"wallet",type:"noun"},{jp:"荷物",r:"にもつ",en:"luggage / baggage",type:"noun"},
-    {jp:"お金",r:"おかね",en:"money",type:"noun"},{jp:"値段",r:"ねだん",en:"price",type:"noun"},
-    {jp:"電車",r:"でんしゃ",en:"train",type:"noun"},{jp:"バス",r:"バス",en:"bus",type:"noun"},
-    {jp:"タクシー",r:"タクシー",en:"taxi",type:"noun"},{jp:"自転車",r:"じてんしゃ",en:"bicycle",type:"noun"},
-    {jp:"地下鉄",r:"ちかてつ",en:"subway",type:"noun"},{jp:"天気",r:"てんき",en:"weather",type:"noun"},
-    {jp:"雨",r:"あめ",en:"rain",type:"noun"},{jp:"雪",r:"ゆき",en:"snow",type:"noun"},
-    {jp:"風",r:"かぜ",en:"wind",type:"noun"},{jp:"雲",r:"くも",en:"cloud",type:"noun"},
-    {jp:"太陽",r:"たいよう",en:"sun",type:"noun"},{jp:"星",r:"ほし",en:"star",type:"noun"},
-    {jp:"海",r:"うみ",en:"sea / ocean",type:"noun"},{jp:"池",r:"いけ",en:"pond",type:"noun"},
-    {jp:"橋",r:"はし",en:"bridge",type:"noun"},{jp:"道",r:"みち",en:"road / path",type:"noun"},
-    {jp:"町",r:"まち",en:"town",type:"noun"},{jp:"国",r:"くに",en:"country",type:"noun"},
-    {jp:"世界",r:"せかい",en:"world",type:"noun"},{jp:"日本",r:"にほん",en:"Japan",type:"noun"},
-    {jp:"東京",r:"とうきょう",en:"Tokyo",type:"noun"},{jp:"上",r:"うえ",en:"above / on top",type:"noun"},
-    {jp:"下",r:"した",en:"below / under",type:"noun"},{jp:"左",r:"ひだり",en:"left",type:"noun"},
-    {jp:"右",r:"みぎ",en:"right",type:"noun"},{jp:"前",r:"まえ",en:"front / before",type:"noun"},
-    {jp:"後ろ",r:"うしろ",en:"behind / back",type:"noun"},{jp:"中",r:"なか",en:"inside / middle",type:"noun"},
-    {jp:"外",r:"そと",en:"outside",type:"noun"},{jp:"隣",r:"となり",en:"next to / neighbor",type:"noun"},
-    {jp:"近く",r:"ちかく",en:"nearby",type:"noun"},{jp:"遠く",r:"とおく",en:"far away",type:"noun"},
-    {jp:"半分",r:"はんぶん",en:"half",type:"noun"},{jp:"全部",r:"ぜんぶ",en:"all / everything",type:"noun"},
-    {jp:"一緒",r:"いっしょ",en:"together",type:"noun"},{jp:"一人",r:"ひとり",en:"alone / one person",type:"noun"},
-    {jp:"二人",r:"ふたり",en:"two people",type:"noun"},{jp:"名前",r:"なまえ",en:"name",type:"noun"},
-    {jp:"言葉",r:"ことば",en:"word / language",type:"noun"},{jp:"日本語",r:"にほんご",en:"Japanese language",type:"noun"},
-    {jp:"英語",r:"えいご",en:"English language",type:"noun"},{jp:"時間",r:"じかん",en:"time",type:"noun"},
-    {jp:"分",r:"ふん・ぷん",en:"minute",type:"noun"},{jp:"時",r:"じ",en:"hour / o'clock",type:"noun"},
-    {jp:"番号",r:"ばんごう",en:"number",type:"noun"},{jp:"問題",r:"もんだい",en:"problem / question",type:"noun"},
-    {jp:"答え",r:"こたえ",en:"answer",type:"noun"},{jp:"意味",r:"いみ",en:"meaning",type:"noun"},
-    {jp:"質問",r:"しつもん",en:"question",type:"noun"},{jp:"授業",r:"じゅぎょう",en:"class / lesson",type:"noun"},
-    {jp:"宿題",r:"しゅくだい",en:"homework",type:"noun"},{jp:"試験",r:"しけん",en:"exam / test",type:"noun"},
-    {jp:"仕事",r:"しごと",en:"work / job",type:"noun"},{jp:"趣味",r:"しゅみ",en:"hobby",type:"noun"},
-    {jp:"気持ち",r:"きもち",en:"feeling",type:"noun"},{jp:"元気",r:"げんき",en:"healthy / energetic",type:"adj"},
-    {jp:"病気",r:"びょうき",en:"illness / sick",type:"noun"},{jp:"薬",r:"くすり",en:"medicine",type:"noun"},
-    {jp:"知る",r:"しる",romaji:"shiru",en:"to know",type:"verb"},{jp:"分かる",r:"わかる",romaji:"wakaru",en:"to understand",type:"verb"},
-    {jp:"思う",r:"おもう",romaji:"omou",en:"to think",type:"verb"},{jp:"言う",r:"いう",romaji:"iu",en:"to say",type:"verb"},
-    {jp:"見せる",r:"みせる",romaji:"miseru",en:"to show",type:"verb"},{jp:"聞こえる",r:"きこえる",romaji:"kikoeru",en:"to be audible",type:"verb"},
-    {jp:"見える",r:"みえる",romaji:"mieru",en:"to be visible",type:"verb"},{jp:"始める",r:"はじめる",romaji:"hajimeru",en:"to begin",type:"verb"},
-    {jp:"終わる",r:"おわる",romaji:"owaru",en:"to end / finish",type:"verb"},{jp:"続ける",r:"つづける",romaji:"tsuzukeru",en:"to continue",type:"verb"},
-    {jp:"覚える",r:"おぼえる",romaji:"oboeru",en:"to memorise / remember",type:"verb"},{jp:"忘れる",r:"わすれる",romaji:"wasureru",en:"to forget",type:"verb"},
-    {jp:"疲れる",r:"つかれる",romaji:"tsukareru",en:"to get tired",type:"verb"},{jp:"起こる",r:"おこる",romaji:"okoru",en:"to happen / occur",type:"verb"},
-    {jp:"送る",r:"おくる",romaji:"okuru",en:"to send",type:"verb"},{jp:"呼ぶ",r:"よぶ",romaji:"yobu",en:"to call / invite",type:"verb"},
-    {jp:"頼む",r:"たのむ",romaji:"tanomu",en:"to request / ask a favour",type:"verb"},{jp:"答える",r:"こたえる",romaji:"kotaeru",en:"to answer",type:"verb"},
-    {jp:"考える",r:"かんがえる",romaji:"kangaeru",en:"to think / consider",type:"verb"},{jp:"決める",r:"きめる",romaji:"kimeru",en:"to decide",type:"verb"},
-    {jp:"変える",r:"かえる",romaji:"kaeru",en:"to change",type:"verb"},{jp:"洗う",r:"あらう",romaji:"arau",en:"to wash",type:"verb"},
-    {jp:"掃除する",r:"そうじする",romaji:"soujisuru",en:"to clean",type:"verb"},{jp:"料理する",r:"りょうりする",romaji:"ryourisuru",en:"to cook",type:"verb"},
-    {jp:"運転する",r:"うんてんする",romaji:"untensuru",en:"to drive",type:"verb"},{jp:"電話する",r:"でんわする",romaji:"denwasuru",en:"to phone",type:"verb"},
-    {jp:"勉強する",r:"べんきょうする",romaji:"benkyousuru",en:"to study",type:"verb"},{jp:"結婚する",r:"けっこんする",romaji:"kekonsuru",en:"to marry",type:"verb"},
-    {jp:"旅行する",r:"りょこうする",romaji:"ryokousuru",en:"to travel",type:"verb"},
-    {jp:"春",r:"はる",romaji:"haru",en:"spring",type:"noun"},{jp:"夏",r:"なつ",romaji:"natsu",en:"summer",type:"noun"},
-    {jp:"秋",r:"あき",romaji:"aki",en:"autumn / fall",type:"noun"},{jp:"冬",r:"ふゆ",romaji:"fuyu",en:"winter",type:"noun"},
-    {jp:"月曜日",r:"げつようび",romaji:"getsuyoubi",en:"Monday",type:"noun"},{jp:"火曜日",r:"かようび",romaji:"kayoubi",en:"Tuesday",type:"noun"},
-    {jp:"水曜日",r:"すいようび",romaji:"suiyoubi",en:"Wednesday",type:"noun"},{jp:"木曜日",r:"もくようび",romaji:"mokuyoubi",en:"Thursday",type:"noun"},
-    {jp:"金曜日",r:"きんようび",romaji:"kinyoubi",en:"Friday",type:"noun"},{jp:"土曜日",r:"どようび",romaji:"doyoubi",en:"Saturday",type:"noun"},
+    {jp:"日",r:"にち・ひ",romaji:"nichi / hi",en:"day / sun",type:"noun"},
+    {jp:"月",r:"つき・げつ",romaji:"tsuki / getsu",en:"moon / month",type:"noun"},
+    {jp:"年",r:"ねん・とし",romaji:"nen / toshi",en:"year",type:"noun"},
+    {jp:"今週",r:"こんしゅう",romaji:"konshuu",en:"this week",type:"noun"},
+    {jp:"来週",r:"らいしゅう",romaji:"raishuu",en:"next week",type:"noun"},
+    {jp:"先週",r:"せんしゅう",romaji:"senshuu",en:"last week",type:"noun"},
+    {jp:"今年",r:"ことし",romaji:"kotoshi",en:"this year",type:"noun"},
+    {jp:"来年",r:"らいねん",romaji:"rainen",en:"next year",type:"noun"},
+    {jp:"去年",r:"きょねん",romaji:"kyonen",en:"last year",type:"noun"},
+    {jp:"毎日",r:"まいにち",romaji:"mainichi",en:"every day",type:"noun"},
+    {jp:"毎週",r:"まいしゅう",romaji:"maishuu",en:"every week",type:"noun"},
+    {jp:"毎月",r:"まいつき",romaji:"maitsuki",en:"every month",type:"noun"},
+    {jp:"朝",r:"あさ",romaji:"asa",en:"morning",type:"noun"},
+    {jp:"昼",r:"ひる",romaji:"hiru",en:"noon / daytime",type:"noun"},
+    {jp:"夜",r:"よる",romaji:"yoru",en:"night",type:"noun"},
+    {jp:"夕方",r:"ゆうがた",romaji:"yuugata",en:"evening",type:"noun"},
+    {jp:"午前",r:"ごぜん",romaji:"gozen",en:"AM / morning",type:"noun"},
+    {jp:"午後",r:"ごご",romaji:"gogo",en:"PM / afternoon",type:"noun"},
+    {jp:"何",r:"なに・なん",romaji:"nani / nan",en:"what",type:"noun"},
+    {jp:"誰",r:"だれ",romaji:"dare",en:"who",type:"noun"},
+    {jp:"どこ",r:"どこ",romaji:"doko",en:"where",type:"noun"},
+    {jp:"いつ",r:"いつ",romaji:"itsu",en:"when",type:"noun"},
+    {jp:"なぜ",r:"なぜ",romaji:"naze",en:"why",type:"noun"},
+    {jp:"どう",r:"どう",romaji:"dou",en:"how",type:"noun"},
+    {jp:"いくら",r:"いくら",romaji:"ikura",en:"how much",type:"noun"},
+    {jp:"いくつ",r:"いくつ",romaji:"ikutsu",en:"how many",type:"noun"},
+    {jp:"どれ",r:"どれ",romaji:"dore",en:"which one",type:"noun"},
+    {jp:"どの",r:"どの",romaji:"dono",en:"which",type:"noun"},
+    {jp:"彼",r:"かれ",romaji:"kare",en:"he / boyfriend",type:"noun"},
+    {jp:"彼女",r:"かのじょ",romaji:"kanojo",en:"she / girlfriend",type:"noun"},
+    {jp:"私たち",r:"わたしたち",romaji:"watashitachi",en:"we / us",type:"noun"},
+    {jp:"皆",r:"みんな",romaji:"minna",en:"everyone",type:"noun"},
+    {jp:"父",r:"ちち",romaji:"chichi",en:"(my) father",type:"noun"},
+    {jp:"母",r:"はは",romaji:"haha",en:"(my) mother",type:"noun"},
+    {jp:"兄",r:"あに",romaji:"ani",en:"(my) older brother",type:"noun"},
+    {jp:"姉",r:"あね",romaji:"ane",en:"(my) older sister",type:"noun"},
+    {jp:"弟",r:"おとうと",romaji:"otouto",en:"(my) younger brother",type:"noun"},
+    {jp:"妹",r:"いもうと",romaji:"imouto",en:"(my) younger sister",type:"noun"},
+    {jp:"お父さん",r:"おとうさん",romaji:"otousan",en:"father (polite)",type:"noun"},
+    {jp:"お母さん",r:"おかあさん",romaji:"okaasan",en:"mother (polite)",type:"noun"},
+    {jp:"友達",r:"ともだち",romaji:"tomodachi",en:"friend",type:"noun"},
+    {jp:"先生",r:"せんせい",romaji:"sensei",en:"teacher",type:"noun"},
+    {jp:"学生",r:"がくせい",romaji:"gakusei",en:"student",type:"noun"},
+    {jp:"会社員",r:"かいしゃいん",romaji:"kaishain",en:"company employee",type:"noun"},
+    {jp:"学校",r:"がっこう",romaji:"gakkou",en:"school",type:"noun"},
+    {jp:"大学",r:"だいがく",romaji:"daigaku",en:"university",type:"noun"},
+    {jp:"会社",r:"かいしゃ",romaji:"kaisha",en:"company",type:"noun"},
+    {jp:"病院",r:"びょういん",romaji:"byouin",en:"hospital",type:"noun"},
+    {jp:"銀行",r:"ぎんこう",romaji:"ginkou",en:"bank",type:"noun"},
+    {jp:"郵便局",r:"ゆうびんきょく",romaji:"yuubinkyoku",en:"post office",type:"noun"},
+    {jp:"図書館",r:"としょかん",romaji:"toshokan",en:"library",type:"noun"},
+    {jp:"駅",r:"えき",romaji:"eki",en:"station",type:"noun"},
+    {jp:"空港",r:"くうこう",romaji:"kuukou",en:"airport",type:"noun"},
+    {jp:"公園",r:"こうえん",romaji:"kouen",en:"park",type:"noun"},
+    {jp:"店",r:"みせ",romaji:"mise",en:"shop / store",type:"noun"},
+    {jp:"レストラン",r:"レストラン",romaji:"resutoran",en:"restaurant",type:"noun"},
+    {jp:"スーパー",r:"スーパー",romaji:"suupaa",en:"supermarket",type:"noun"},
+    {jp:"ホテル",r:"ホテル",romaji:"hoteru",en:"hotel",type:"noun"},
+    {jp:"部屋",r:"へや",romaji:"heya",en:"room",type:"noun"},
+    {jp:"台所",r:"だいどころ",romaji:"daidokoro",en:"kitchen",type:"noun"},
+    {jp:"トイレ",r:"トイレ",romaji:"toire",en:"toilet / bathroom",type:"noun"},
+    {jp:"窓",r:"まど",romaji:"mado",en:"window",type:"noun"},
+    {jp:"ドア",r:"ドア",romaji:"doa",en:"door",type:"noun"},
+    {jp:"机",r:"つくえ",romaji:"tsukue",en:"desk",type:"noun"},
+    {jp:"椅子",r:"いす",romaji:"isu",en:"chair",type:"noun"},
+    {jp:"テーブル",r:"テーブル",romaji:"teeburu",en:"table",type:"noun"},
+    {jp:"電話",r:"でんわ",romaji:"denwa",en:"telephone",type:"noun"},
+    {jp:"テレビ",r:"テレビ",romaji:"terebi",en:"television",type:"noun"},
+    {jp:"ラジオ",r:"ラジオ",romaji:"rajio",en:"radio",type:"noun"},
+    {jp:"新聞",r:"しんぶん",romaji:"shinbun",en:"newspaper",type:"noun"},
+    {jp:"雑誌",r:"ざっし",romaji:"zasshi",en:"magazine",type:"noun"},
+    {jp:"手紙",r:"てがみ",romaji:"tegami",en:"letter",type:"noun"},
+    {jp:"写真",r:"しゃしん",romaji:"shashin",en:"photograph",type:"noun"},
+    {jp:"映画",r:"えいが",romaji:"eiga",en:"movie",type:"noun"},
+    {jp:"音楽",r:"おんがく",romaji:"ongaku",en:"music",type:"noun"},
+    {jp:"スポーツ",r:"スポーツ",romaji:"supootsu",en:"sports",type:"noun"},
+    {jp:"料理",r:"りょうり",romaji:"ryouri",en:"cooking / cuisine",type:"noun"},
+    {jp:"旅行",r:"りょこう",romaji:"ryokou",en:"travel",type:"noun"},
+    {jp:"食べ物",r:"たべもの",romaji:"tabemono",en:"food",type:"noun"},
+    {jp:"飲み物",r:"のみもの",romaji:"nomimono",en:"drink / beverage",type:"noun"},
+    {jp:"ご飯",r:"ごはん",romaji:"gohan",en:"rice / meal",type:"noun"},
+    {jp:"パン",r:"パン",romaji:"pan",en:"bread",type:"noun"},
+    {jp:"肉",r:"にく",romaji:"niku",en:"meat",type:"noun"},
+    {jp:"魚",r:"さかな",romaji:"sakana",en:"fish",type:"noun"},
+    {jp:"野菜",r:"やさい",romaji:"yasai",en:"vegetables",type:"noun"},
+    {jp:"果物",r:"くだもの",romaji:"kudamono",en:"fruit",type:"noun"},
+    {jp:"春",r:"はる",romaji:"haru",en:"spring",type:"noun"},
+    {jp:"夏",r:"なつ",romaji:"natsu",en:"summer",type:"noun"},
+    {jp:"秋",r:"あき",romaji:"aki",en:"autumn / fall",type:"noun"},
+    {jp:"冬",r:"ふゆ",romaji:"fuyu",en:"winter",type:"noun"},
+    {jp:"月曜日",r:"げつようび",romaji:"getsuyoubi",en:"Monday",type:"noun"},
+    {jp:"火曜日",r:"かようび",romaji:"kayoubi",en:"Tuesday",type:"noun"},
+    {jp:"水曜日",r:"すいようび",romaji:"suiyoubi",en:"Wednesday",type:"noun"},
+    {jp:"木曜日",r:"もくようび",romaji:"mokuyoubi",en:"Thursday",type:"noun"},
+    {jp:"金曜日",r:"きんようび",romaji:"kinyoubi",en:"Friday",type:"noun"},
+    {jp:"土曜日",r:"どようび",romaji:"doyoubi",en:"Saturday",type:"noun"},
     {jp:"日曜日",r:"にちようび",romaji:"nichiyoubi",en:"Sunday",type:"noun"},
-    {jp:"おはよう",r:"おはよう",romaji:"ohayou",en:"good morning (casual)",type:"phrase"},{jp:"おはようございます",r:"おはようございます",romaji:"ohayou gozaimasu",en:"good morning (polite)",type:"phrase"},
-    {jp:"こんにちは",r:"こんにちは",romaji:"konnichiwa",en:"hello / good afternoon",type:"phrase"},{jp:"こんばんは",r:"こんばんは",romaji:"konbanwa",en:"good evening",type:"phrase"},
-    {jp:"おやすみ",r:"おやすみ",romaji:"oyasumi",en:"good night (casual)",type:"phrase"},{jp:"さようなら",r:"さようなら",romaji:"sayounara",en:"goodbye",type:"phrase"},
-    {jp:"ありがとう",r:"ありがとう",romaji:"arigatou",en:"thank you (casual)",type:"phrase"},{jp:"ありがとうございます",r:"ありがとうございます",romaji:"arigatou gozaimasu",en:"thank you (polite)",type:"phrase"},
-    {jp:"すみません",r:"すみません",romaji:"sumimasen",en:"excuse me / sorry",type:"phrase"},{jp:"ごめんなさい",r:"ごめんなさい",romaji:"gomennasai",en:"I am sorry",type:"phrase"},
-    {jp:"はい",r:"はい",romaji:"hai",en:"yes",type:"phrase"},{jp:"いいえ",r:"いいえ",romaji:"iie",en:"no",type:"phrase"},
-    {jp:"どうぞ",r:"どうぞ",romaji:"douzo",en:"please / go ahead",type:"phrase"},{jp:"どうも",r:"どうも",romaji:"doumo",en:"thanks / somehow",type:"phrase"},
-    {jp:"いただきます",r:"いただきます",romaji:"itadakimasu",en:"let's eat (before meals)",type:"phrase"},{jp:"ごちそうさま",r:"ごちそうさま",romaji:"gochisousama",en:"thank you for the meal",type:"phrase"},
-    {jp:"よろしく",r:"よろしく",romaji:"yoroshiku",en:"nice to meet you / regards",type:"phrase"},{jp:"初めまして",r:"はじめまして",romaji:"hajimemashite",en:"nice to meet you (first time)",type:"phrase"},
-    {jp:"ちょっと",r:"ちょっと",romaji:"chotto",en:"a little / just a moment",type:"adv"},{jp:"もう",r:"もう",romaji:"mou",en:"already / anymore",type:"adv"},
-    {jp:"まだ",r:"まだ",romaji:"mada",en:"still / not yet",type:"adv"},{jp:"また",r:"また",romaji:"mata",en:"again / also",type:"adv"},
-    {jp:"もっと",r:"もっと",romaji:"motto",en:"more",type:"adv"},{jp:"とても",r:"とても",romaji:"totemo",en:"very / extremely",type:"adv"},
-    {jp:"少し",r:"すこし",romaji:"sukoshi",en:"a little / a bit",type:"adv"},{jp:"たくさん",r:"たくさん",romaji:"takusan",en:"a lot / many",type:"adv"},
-    {jp:"一番",r:"いちばん",romaji:"ichiban",en:"the most / number one",type:"adv"},{jp:"本当",r:"ほんとう",romaji:"hontou",en:"truth / really",type:"noun"},
-    {jp:"全然",r:"ぜんぜん",romaji:"zenzen",en:"not at all",type:"adv"},{jp:"だから",r:"だから",romaji:"dakara",en:"therefore / so",type:"conj"},
-    {jp:"でも",r:"でも",romaji:"demo",en:"but / however",type:"conj"},{jp:"そして",r:"そして",romaji:"soshite",en:"and then / and",type:"conj"},
-    {jp:"それから",r:"それから",romaji:"sorekara",en:"after that / and then",type:"conj"},
-    {jp:"自分",r:"じぶん",romaji:"jibun",en:"oneself / myself",type:"noun"},{jp:"皆さん",r:"みなさん",romaji:"minasan",en:"everyone (polite)",type:"noun"},
-    {jp:"入れる",r:"いれる",romaji:"ireru",en:"to put in / insert",type:"verb"},{jp:"出す",r:"だす",romaji:"dasu",en:"to take out / submit",type:"verb"},
-    {jp:"取る",r:"とる",romaji:"toru",en:"to take / grab",type:"verb"},{jp:"見つける",r:"みつける",romaji:"mitsukeru",en:"to find",type:"verb"},
-    {jp:"なくす",r:"なくす",romaji:"nakusu",en:"to lose (something)",type:"verb"},{jp:"着く",r:"つく",romaji:"tsuku",en:"to arrive",type:"verb"},
-    {jp:"曲がる",r:"まがる",romaji:"magaru",en:"to turn",type:"verb"},{jp:"止まる",r:"とまる",romaji:"tomaru",en:"to stop",type:"verb"},
-    {jp:"通る",r:"とおる",romaji:"tooru",en:"to pass through",type:"verb"},{jp:"渡る",r:"わたる",romaji:"wataru",en:"to cross",type:"verb"},
-    {jp:"選ぶ",r:"えらぶ",romaji:"erabu",en:"to choose / select",type:"verb"},{jp:"比べる",r:"くらべる",romaji:"kuraberu",en:"to compare",type:"verb"},
-    {jp:"困る",r:"こまる",romaji:"komaru",en:"to be troubled / in trouble",type:"verb"},{jp:"驚く",r:"おどろく",romaji:"odoroku",en:"to be surprised",type:"verb"},
-    {jp:"喜ぶ",r:"よろこぶ",romaji:"yorokobu",en:"to be pleased / rejoice",type:"verb"},{jp:"怒る",r:"おこる",romaji:"okoru",en:"to get angry",type:"verb"},
-    {jp:"泣く",r:"なく",romaji:"naku",en:"to cry",type:"verb"},{jp:"笑う",r:"わらう",romaji:"warau",en:"to laugh / smile",type:"verb"},
-    {jp:"急ぐ",r:"いそぐ",romaji:"isogu",en:"to hurry",type:"verb"},{jp:"払う",r:"はらう",romaji:"harau",en:"to pay",type:"verb"},
-    {jp:"売る",r:"うる",romaji:"uru",en:"to sell",type:"verb"},{jp:"増える",r:"ふえる",romaji:"fueru",en:"to increase",type:"verb"},
-    {jp:"減る",r:"へる",romaji:"heru",en:"to decrease",type:"verb"},{jp:"太る",r:"ふとる",romaji:"futoru",en:"to gain weight",type:"verb"},
-    {jp:"痩せる",r:"やせる",romaji:"yaseru",en:"to lose weight / become thin",type:"verb"},{jp:"泊まる",r:"とまる",romaji:"tomaru",en:"to stay overnight",type:"verb"},
-    {jp:"出かける",r:"でかける",romaji:"dekakeru",en:"to go out",type:"verb"},{jp:"戻る",r:"もどる",romaji:"modoru",en:"to return / go back",type:"verb"},
-    {jp:"集まる",r:"あつまる",romaji:"atsumaru",en:"to gather / assemble",type:"verb"},{jp:"別れる",r:"わかれる",romaji:"wakareru",en:"to part / separate",type:"verb"},
-    {jp:"合う",r:"あう",romaji:"au",en:"to match / fit / suit",type:"verb"},{jp:"似る",r:"にる",romaji:"niru",en:"to resemble / be similar",type:"verb"},
-    {jp:"足りる",r:"たりる",romaji:"tariru",en:"to be enough / sufficient",type:"verb"},
-    {jp:"丸い",r:"まるい",romaji:"marui",en:"round / circular",type:"adj"},{jp:"明るい",r:"あかるい",romaji:"akarui",en:"bright / cheerful",type:"adj"},
-    {jp:"暗い",r:"くらい",romaji:"kurai",en:"dark / gloomy",type:"adj"},{jp:"うるさい",r:"うるさい",romaji:"urusai",en:"noisy / annoying",type:"adj"},
-    {jp:"静か",r:"しずか",romaji:"shizuka",en:"quiet / calm",type:"adj"},{jp:"綺麗",r:"きれい",romaji:"kirei",en:"pretty / clean",type:"adj"},
-    {jp:"汚い",r:"きたない",romaji:"kitanai",en:"dirty / messy",type:"adj"},{jp:"甘い",r:"あまい",romaji:"amai",en:"sweet",type:"adj"},
-    {jp:"辛い",r:"からい",romaji:"karai",en:"spicy / hot",type:"adj"},{jp:"苦い",r:"にがい",romaji:"nigai",en:"bitter",type:"adj"},
-    {jp:"正しい",r:"ただしい",romaji:"tadashii",en:"correct / right",type:"adj"},{jp:"危ない",r:"あぶない",romaji:"abunai",en:"dangerous",type:"adj"},
-    {jp:"大変",r:"たいへん",romaji:"taihen",en:"difficult / serious / very",type:"adj"},{jp:"親切",r:"しんせつ",romaji:"shinsetsu",en:"kind / helpful",type:"adj"},
-    {jp:"便利",r:"べんり",romaji:"benri",en:"convenient",type:"adj"},{jp:"必要",r:"ひつよう",romaji:"hitsuyou",en:"necessary / need",type:"adj"},
-    {jp:"簡単",r:"かんたん",romaji:"kantan",en:"simple / easy",type:"adj"},{jp:"普通",r:"ふつう",romaji:"futsuu",en:"normal / ordinary",type:"adj"},
-    {jp:"特別",r:"とくべつ",romaji:"tokubetsu",en:"special",type:"adj"},{jp:"暖かい",r:"あたたかい",romaji:"atatakai",en:"warm",type:"adj"},
-    {jp:"涼しい",r:"すずしい",romaji:"suzushii",en:"cool / refreshing",type:"adj"},{jp:"寂しい",r:"さびしい",romaji:"sabishii",en:"lonely",type:"adj"},
-    {jp:"恥ずかしい",r:"はずかしい",romaji:"hazukashii",en:"embarrassing / shy",type:"adj"},{jp:"懐かしい",r:"なつかしい",romaji:"natsukashii",en:"nostalgic",type:"adj"},
-    {jp:"珍しい",r:"めずらしい",romaji:"mezurashii",en:"rare / unusual",type:"adj"},
-    {jp:"家族",r:"かぞく",romaji:"kazoku",en:"family",type:"noun"},{jp:"兄弟",r:"きょうだい",romaji:"kyoudai",en:"siblings",type:"noun"},
-    {jp:"祖父",r:"そふ",romaji:"sofu",en:"(my) grandfather",type:"noun"},{jp:"祖母",r:"そぼ",romaji:"sobo",en:"(my) grandmother",type:"noun"},
-    {jp:"息子",r:"むすこ",romaji:"musuko",en:"(my) son",type:"noun"},{jp:"娘",r:"むすめ",romaji:"musume",en:"(my) daughter",type:"noun"},
-    {jp:"夫",r:"おっと",romaji:"otto",en:"(my) husband",type:"noun"},{jp:"妻",r:"つま",romaji:"tsuma",en:"(my) wife",type:"noun"},
-    {jp:"大人",r:"おとな",romaji:"otona",en:"adult",type:"noun"},{jp:"子供",r:"こども",romaji:"kodomo",en:"child",type:"noun"},
-    {jp:"男",r:"おとこ",romaji:"otoko",en:"man / male",type:"noun"},{jp:"女",r:"おんな",romaji:"onna",en:"woman / female",type:"noun"},
-    {jp:"動物",r:"どうぶつ",romaji:"doubutsu",en:"animal",type:"noun"},{jp:"鳥",r:"とり",romaji:"tori",en:"bird",type:"noun"},
+    {jp:"本当",r:"ほんとう",romaji:"hontou",en:"truth / really",type:"noun"},
+    {jp:"自分",r:"じぶん",romaji:"jibun",en:"oneself / myself",type:"noun"},
+    {jp:"皆さん",r:"みなさん",romaji:"minasan",en:"everyone (polite)",type:"noun"},
+    {jp:"家族",r:"かぞく",romaji:"kazoku",en:"family",type:"noun"},
+    {jp:"兄弟",r:"きょうだい",romaji:"kyoudai",en:"siblings",type:"noun"},
+    {jp:"祖父",r:"そふ",romaji:"sofu",en:"(my) grandfather",type:"noun"},
+    {jp:"祖母",r:"そぼ",romaji:"sobo",en:"(my) grandmother",type:"noun"},
+    {jp:"息子",r:"むすこ",romaji:"musuko",en:"(my) son",type:"noun"},
+    {jp:"娘",r:"むすめ",romaji:"musume",en:"(my) daughter",type:"noun"},
+    {jp:"夫",r:"おっと",romaji:"otto",en:"(my) husband",type:"noun"},
+    {jp:"妻",r:"つま",romaji:"tsuma",en:"(my) wife",type:"noun"},
+    {jp:"大人",r:"おとな",romaji:"otona",en:"adult",type:"noun"},
+    {jp:"子供",r:"こども",romaji:"kodomo",en:"child",type:"noun"},
+    {jp:"男",r:"おとこ",romaji:"otoko",en:"man / male",type:"noun"},
+    {jp:"女",r:"おんな",romaji:"onna",en:"woman / female",type:"noun"},
+    {jp:"動物",r:"どうぶつ",romaji:"doubutsu",en:"animal",type:"noun"},
+    {jp:"鳥",r:"とり",romaji:"tori",en:"bird",type:"noun"},
     {jp:"虫",r:"むし",romaji:"mushi",en:"insect / bug",type:"noun"},
-    {jp:"自然",r:"しぜん",romaji:"shizen",en:"nature / natural",type:"noun"},{jp:"環境",r:"かんきょう",romaji:"kankyou",en:"environment",type:"noun"},
-    {jp:"文化",r:"ぶんか",romaji:"bunka",en:"culture",type:"noun"},{jp:"社会",r:"しゃかい",romaji:"shakai",en:"society",type:"noun"},
-    {jp:"生活",r:"せいかつ",romaji:"seikatsu",en:"life / living",type:"noun"},{jp:"経験",r:"けいけん",romaji:"keiken",en:"experience",type:"noun"},
-    {jp:"場所",r:"ばしょ",romaji:"basho",en:"place / location",type:"noun"},{jp:"理由",r:"りゆう",romaji:"riyuu",en:"reason",type:"noun"},
-    {jp:"約束",r:"やくそく",romaji:"yakusoku",en:"promise / appointment",type:"noun"},{jp:"準備",r:"じゅんび",romaji:"junbi",en:"preparation",type:"noun"},
-    {jp:"確認",r:"かくにん",romaji:"kakunin",en:"confirmation / check",type:"noun"},{jp:"連絡",r:"れんらく",romaji:"renraku",en:"contact / communication",type:"noun"},
+    {jp:"自然",r:"しぜん",romaji:"shizen",en:"nature / natural",type:"noun"},
+    {jp:"環境",r:"かんきょう",romaji:"kankyou",en:"environment",type:"noun"},
+    {jp:"文化",r:"ぶんか",romaji:"bunka",en:"culture",type:"noun"},
+    {jp:"社会",r:"しゃかい",romaji:"shakai",en:"society",type:"noun"},
+    {jp:"生活",r:"せいかつ",romaji:"seikatsu",en:"life / living",type:"noun"},
+    {jp:"経験",r:"けいけん",romaji:"keiken",en:"experience",type:"noun"},
+    {jp:"場所",r:"ばしょ",romaji:"basho",en:"place / location",type:"noun"},
+    {jp:"理由",r:"りゆう",romaji:"riyuu",en:"reason",type:"noun"},
+    {jp:"約束",r:"やくそく",romaji:"yakusoku",en:"promise / appointment",type:"noun"},
+    {jp:"準備",r:"じゅんび",romaji:"junbi",en:"preparation",type:"noun"},
+    {jp:"確認",r:"かくにん",romaji:"kakunin",en:"confirmation / check",type:"noun"},
+    {jp:"連絡",r:"れんらく",romaji:"renraku",en:"contact / communication",type:"noun"},
     {jp:"相談",r:"そうだん",romaji:"soudan",en:"consultation / discussion",type:"noun"},
-    {jp:"よく",r:"よく",romaji:"yoku",en:"often / well",type:"adv"},{jp:"時々",r:"ときどき",romaji:"tokidoki",en:"sometimes",type:"adv"},
-    {jp:"いつも",r:"いつも",romaji:"itsumo",en:"always / usually",type:"adv"},{jp:"絶対",r:"ぜったい",romaji:"zettai",en:"absolutely / definitely",type:"adv"},
-    {jp:"多分",r:"たぶん",romaji:"tabun",en:"probably / maybe",type:"adv"},{jp:"やっと",r:"やっと",romaji:"yatto",en:"finally / at last",type:"adv"},
-    {jp:"すぐ",r:"すぐ",romaji:"sugu",en:"immediately / soon",type:"adv"},{jp:"ゆっくり",r:"ゆっくり",romaji:"yukkuri",en:"slowly / leisurely",type:"adv"},
-    {jp:"突然",r:"とつぜん",romaji:"totsuzen",en:"suddenly",type:"adv"},{jp:"特に",r:"とくに",romaji:"tokuni",en:"especially / particularly",type:"adv"},
-    {jp:"ずっと",r:"ずっと",romaji:"zutto",en:"all along / the whole time",type:"adv"},{jp:"もうすぐ",r:"もうすぐ",romaji:"mousugu",en:"very soon / almost",type:"adv"},
-    {jp:"最近",r:"さいきん",romaji:"saikin",en:"recently / lately",type:"noun"},{jp:"将来",r:"しょうらい",romaji:"shourai",en:"future",type:"noun"},
+    {jp:"最近",r:"さいきん",romaji:"saikin",en:"recently / lately",type:"noun"},
+    {jp:"将来",r:"しょうらい",romaji:"shourai",en:"future",type:"noun"},
     {jp:"現在",r:"げんざい",romaji:"genzai",en:"the present / now",type:"noun"},
+    {jp:"かれ",r:"かれ",romaji:"kare",en:"he / him / boyfriend",type:"noun"},
+    {jp:"かのじょ",r:"かのじょ",romaji:"kanojo",en:"she / her / girlfriend",type:"noun"},
+    {jp:"わたしたち",r:"わたしたち",romaji:"watashitachi",en:"we / us",type:"noun"},
+    {jp:"みんな",r:"みんな",romaji:"minna",en:"everyone / all",type:"noun"},
+    {jp:"だれ",r:"だれ",romaji:"dare",en:"who",type:"noun"},
+    {jp:"どなた",r:"どなた",romaji:"donata",en:"who (polite)",type:"noun"},
+    {jp:"なに",r:"なに",romaji:"nani",en:"what",type:"noun"},
+    {jp:"どちら",r:"どちら",romaji:"dochira",en:"which (of two)",type:"noun"},
+    {jp:"今月",r:"こんげつ",romaji:"kongetsu",en:"this month",type:"noun"},
+    {jp:"来月",r:"らいげつ",romaji:"raigetsu",en:"next month",type:"noun"},
+    {jp:"先月",r:"せんげつ",romaji:"sengetsu",en:"last month",type:"noun"},
+    {jp:"晩",r:"ばん",romaji:"ban",en:"evening",type:"noun"},
+    {jp:"両親",r:"りょうしん",romaji:"ryooshin",en:"parents",type:"noun"},
+    {jp:"首",r:"くび",romaji:"kubi",en:"neck",type:"noun"},
+    {jp:"肩",r:"かた",romaji:"kata",en:"shoulder",type:"noun"},
+    {jp:"腕",r:"うで",romaji:"ude",en:"arm",type:"noun"},
+    {jp:"指",r:"ゆび",romaji:"yubi",en:"finger",type:"noun"},
+    {jp:"背",r:"せ",romaji:"se",en:"back / height",type:"noun"},
+    {jp:"ごはん",r:"ごはん",romaji:"gohan",en:"rice / meal",type:"noun"},
+    {jp:"ジュース",r:"じゅーす",romaji:"juusu",en:"juice",type:"noun"},
+    {jp:"塩",r:"しお",romaji:"shio",en:"salt",type:"noun"},
+    {jp:"砂糖",r:"さとう",romaji:"satoo",en:"sugar",type:"noun"},
+    {jp:"醤油",r:"しょうゆ",romaji:"shooyu",en:"soy sauce",type:"noun"},
+    {jp:"朝ごはん",r:"あさごはん",romaji:"asagohan",en:"breakfast",type:"noun"},
+    {jp:"昼ごはん",r:"ひるごはん",romaji:"hirugohan",en:"lunch",type:"noun"},
+    {jp:"晩ごはん",r:"ばんごはん",romaji:"bangohan",en:"dinner",type:"noun"},
+    {jp:"玄関",r:"げんかん",romaji:"genkan",en:"entrance / front door",type:"noun"},
+    {jp:"お手洗い",r:"おてあらい",romaji:"otearai",en:"toilet / restroom",type:"noun"},
+    {jp:"風呂",r:"ふろ",romaji:"furo",en:"bath",type:"noun"},
+    {jp:"庭",r:"にわ",romaji:"niwa",en:"garden / yard",type:"noun"},
+    {jp:"村",r:"むら",romaji:"mura",en:"village",type:"noun"},
+    {jp:"本屋",r:"ほんや",romaji:"honya",en:"bookstore",type:"noun"},
+    {jp:"酒屋",r:"さかや",romaji:"sakaya",en:"liquor store",type:"noun"},
+    {jp:"肉屋",r:"にくや",romaji:"nikuya",en:"butcher",type:"noun"},
+    {jp:"魚屋",r:"さかなや",romaji:"sakanaya",en:"fish shop",type:"noun"},
+    {jp:"花屋",r:"はなや",romaji:"hanaya",en:"flower shop",type:"noun"},
+    {jp:"美容院",r:"びよういん",romaji:"biyooin",en:"hair salon",type:"noun"},
+    {jp:"映画館",r:"えいがかん",romaji:"eigakan",en:"cinema / movie theater",type:"noun"},
+    {jp:"交差点",r:"こうさてん",romaji:"koosaten",en:"intersection",type:"noun"},
+    {jp:"信号",r:"しんごう",romaji:"shingoo",en:"traffic light",type:"noun"},
+    {jp:"角",r:"かど",romaji:"kado",en:"corner",type:"noun"},
+    {jp:"飛行機",r:"ひこうき",romaji:"hikooki",en:"airplane",type:"noun"},
+    {jp:"船",r:"ふね",romaji:"fune",en:"ship / boat",type:"noun"},
+    {jp:"バイク",r:"ばいく",romaji:"baiku",en:"motorcycle",type:"noun"},
+    {jp:"切符",r:"きっぷ",romaji:"kippu",en:"ticket",type:"noun"},
+    {jp:"乗り物",r:"のりもの",romaji:"norimono",en:"vehicle / transportation",type:"noun"},
+    {jp:"傘",r:"かさ",romaji:"kasa",en:"umbrella",type:"noun"},
+    {jp:"眼鏡",r:"めがね",romaji:"megane",en:"glasses / spectacles",type:"noun"},
+    {jp:"カメラ",r:"かめら",romaji:"kamera",en:"camera",type:"noun"},
+    {jp:"パソコン",r:"ぱそこん",romaji:"pasokon",en:"computer / PC",type:"noun"},
+    {jp:"階段",r:"かいだん",romaji:"kaidan",en:"stairs",type:"noun"},
+    {jp:"エレベーター",r:"えれべーたー",romaji:"erebeetaa",en:"elevator",type:"noun"},
+    {jp:"ごみ",r:"ごみ",romaji:"gomi",en:"garbage / trash",type:"noun"},
+    {jp:"シャツ",r:"しゃつ",romaji:"shatsu",en:"shirt",type:"noun"},
+    {jp:"ズボン",r:"ずぼん",romaji:"zubon",en:"trousers / pants",type:"noun"},
+    {jp:"スカート",r:"すかーと",romaji:"sukaato",en:"skirt",type:"noun"},
+    {jp:"コート",r:"こーと",romaji:"kooto",en:"coat",type:"noun"},
+    {jp:"靴下",r:"くつした",romaji:"kutsushita",en:"socks",type:"noun"},
+    {jp:"森",r:"もり",romaji:"mori",en:"forest / woods",type:"noun"},
+    {jp:"野原",r:"のはら",romaji:"nohara",en:"field / plain",type:"noun"},
+    {jp:"地面",r:"じめん",romaji:"jimen",en:"ground / surface",type:"noun"},
+    {jp:"成績",r:"せいせき",romaji:"seiseki",en:"grades / results",type:"noun"},
+    {jp:"教室",r:"きょうしつ",romaji:"kyooshitsu",en:"classroom",type:"noun"},
+    {jp:"黒板",r:"こくばん",romaji:"kokuban",en:"blackboard",type:"noun"},
+    {jp:"ノート",r:"のーと",romaji:"nooto",en:"notebook",type:"noun"},
+    {jp:"鉛筆",r:"えんぴつ",romaji:"enpitsu",en:"pencil",type:"noun"},
+    {jp:"消しゴム",r:"けしごむ",romaji:"keshigomu",en:"eraser",type:"noun"},
+    {jp:"定規",r:"じょうぎ",romaji:"joogi",en:"ruler",type:"noun"},
+    {jp:"青",r:"あお",romaji:"ao",en:"blue / green",type:"noun"},
+    {jp:"赤",r:"あか",romaji:"aka",en:"red",type:"noun"},
+    {jp:"あさって",r:"あさって",romaji:"asaっte",en:"day after tomorrow",type:"noun"},
+    {jp:"あちら",r:"あちら",romaji:"achira",en:"over there (polite)",type:"noun"},
+    {jp:"あっち",r:"あっち",romaji:"aっchi",en:"over there (casual)",type:"noun"},
+    {jp:"後",r:"あと",romaji:"ato",en:"after / later / behind",type:"noun"},
+    {jp:"アパート",r:"アパート",romaji:"アパート",en:"apartment",type:"noun"},
+    {jp:"雨",r:"あめ",romaji:"ame",en:"rain",type:"noun"},
+    {jp:"飴",r:"あめ",romaji:"ame",en:"candy / sweets",type:"noun"},
+    {jp:"池",r:"いけ",romaji:"ike",en:"pond",type:"noun"},
+    {jp:"上",r:"うえ",romaji:"ue",en:"above / on top",type:"noun"},
+    {jp:"後ろ",r:"うしろ",romaji:"ushiro",en:"behind / back",type:"noun"},
+    {jp:"歌",r:"うた",romaji:"uta",en:"song",type:"noun"},
+    {jp:"上着",r:"うわぎ",romaji:"uwaぎ",en:"jacket / coat",type:"noun"},
+    {jp:"英語",r:"えいご",romaji:"eiご",en:"English language",type:"noun"},
+    {jp:"お菓子",r:"おかし",romaji:"okashi",en:"sweets / snacks",type:"noun"},
+    {jp:"お金",r:"おかね",romaji:"okane",en:"money",type:"noun"},
+    {jp:"奥さん",r:"おくさん",romaji:"okusan",en:"wife (someone's)",type:"noun"},
+    {jp:"伯父",r:"おじいさん",romaji:"oじisan",en:"grandfather / old man",type:"noun"},
+    {jp:"叔父",r:"おじいさん",romaji:"oじisan",en:"grandfather / old man",type:"noun"},
+    {jp:"お茶",r:"おちゃ",romaji:"ochiゃ",en:"tea",type:"noun"},
+    {jp:"男の子",r:"おとこのこ",romaji:"otokonoko",en:"boy",type:"noun"},
+    {jp:"一昨日",r:"おととい",romaji:"ototoi",en:"day before yesterday",type:"noun"},
+    {jp:"一昨年",r:"おととし",romaji:"ototoshi",en:"year before last",type:"noun"},
+    {jp:"おなか",r:"おなか",romaji:"onaka",en:"stomach / belly",type:"noun"},
+    {jp:"お兄さん",r:"おにいさん",romaji:"oniisan",en:"older brother (someone's)",type:"noun"},
+    {jp:"お姉さん",r:"おねえさん",romaji:"oneesan",en:"older sister (someone's)",type:"noun"},
+    {jp:"おばあさん",r:"おばあさん",romaji:"oばasan",en:"grandmother / old woman",type:"noun"},
+    {jp:"伯母さん",r:"おばさん",romaji:"oばsan",en:"aunt / middle-aged woman",type:"noun"},
+    {jp:"叔母さん",r:"おばさん",romaji:"oばsan",en:"aunt / middle-aged woman",type:"noun"},
+    {jp:"お風呂",r:"おふろ",romaji:"ofuro",en:"bath",type:"noun"},
+    {jp:"買い物",r:"かいもの",romaji:"kaimono",en:"shopping",type:"noun"},
+    {jp:"かぎ",r:"かぎ",romaji:"kaぎ",en:"key / lock",type:"noun"},
+    {jp:"風",r:"かぜ",romaji:"kaぜ",en:"cold (illness) / wind",type:"noun"},
+    {jp:"風邪",r:"かぜ",romaji:"kaぜ",en:"cold (illness) / wind",type:"noun"},
+    {jp:"黄色",r:"きいろ",romaji:"kiiro",en:"yellow",type:"noun"},
+    {jp:"北",r:"きた",romaji:"kita",en:"north",type:"noun"},
+    {jp:"切手",r:"きって",romaji:"kiっte",en:"stamp (postal)",type:"noun"},
+    {jp:"牛乳",r:"ぎゅうにゅう",romaji:"ぎゅuniゅu",en:"milk",type:"noun"},
+    {jp:"国",r:"くに",romaji:"kuni",en:"country",type:"noun"},
+    {jp:"黒",r:"くろ",romaji:"kuro",en:"black",type:"noun"},
+    {jp:"警官",r:"けいかん",romaji:"keikan",en:"police officer",type:"noun"},
+    {jp:"交番",r:"こうばん",romaji:"kouばn",en:"police box",type:"noun"},
+    {jp:"仕事",r:"しごと",romaji:"shiごto",en:"work / job",type:"noun"},
+    {jp:"下",r:"した",romaji:"shita",en:"below / under",type:"noun"},
+    {jp:"質問",r:"しつもん",romaji:"shitsumon",en:"question",type:"noun"},
+    {jp:"自転車",r:"じてんしゃ",romaji:"じtenshiゃ",en:"bicycle",type:"noun"},
+    {jp:"自動車",r:"じどうしゃ",romaji:"じどushiゃ",en:"car / automobile",type:"noun"},
+    {jp:"授業",r:"じゅぎょう",romaji:"じゅぎょu",en:"class / lesson",type:"noun"},
+    {jp:"宿題",r:"しゅくだい",romaji:"shiゅkuだi",en:"homework",type:"noun"},
+    {jp:"白",r:"しろ",romaji:"shiro",en:"white",type:"noun"},
+    {jp:"生徒",r:"せいと",romaji:"seito",en:"pupil / student",type:"noun"},
+    {jp:"そちら",r:"そちら",romaji:"sochira",en:"that way (polite)",type:"noun"},
+    {jp:"そっち",r:"そっち",romaji:"soっchi",en:"that way (casual)",type:"noun"},
+    {jp:"大使館",r:"たいしかん",romaji:"taishikan",en:"embassy",type:"noun"},
+    {jp:"建物",r:"たてもの",romaji:"tatemono",en:"building",type:"noun"},
+    {jp:"たばこ",r:"たばこ",romaji:"taばko",en:"cigarette / tobacco",type:"noun"},
+    {jp:"近く",r:"ちかく",romaji:"chikaku",en:"near / nearby",type:"noun"},
+    {jp:"地下鉄",r:"ちかてつ",romaji:"chikatetsu",en:"subway / underground",type:"noun"},
+    {jp:"地図",r:"ちず",romaji:"chiず",en:"map",type:"noun"},
+    {jp:"茶色",r:"ちゃいろ",romaji:"chiゃiro",en:"brown",type:"noun"},
+    {jp:"次",r:"つぎ",romaji:"tsuぎ",en:"next",type:"noun"},
+    {jp:"テープ",r:"テープ",romaji:"テープ",en:"tape",type:"noun"},
+    {jp:"天気",r:"てんき",romaji:"tenki",en:"weather",type:"noun"},
+    {jp:"電気",r:"でんき",romaji:"でnki",en:"electricity / light",type:"noun"},
+    {jp:"電車",r:"でんしゃ",romaji:"でnshiゃ",en:"train",type:"noun"},
+    {jp:"どっち",r:"どっち",romaji:"どっchi",en:"which (casual)",type:"noun"},
+    {jp:"隣",r:"となり",romaji:"tonari",en:"next to / neighbour",type:"noun"},
+    {jp:"中",r:"なか",romaji:"naka",en:"inside / middle",type:"noun"},
+    {jp:"名前",r:"なまえ",romaji:"namae",en:"name",type:"noun"},
+    {jp:"西",r:"にし",romaji:"nishi",en:"west",type:"noun"},
+    {jp:"荷物",r:"にもつ",romaji:"nimotsu",en:"luggage / baggage",type:"noun"},
+    {jp:"ニュース",r:"ニュース",romaji:"ニュース",en:"news",type:"noun"},
+    {jp:"葉書",r:"はがき",romaji:"haがki",en:"postcard",type:"noun"},
+    {jp:"バス",r:"バス",romaji:"バス",en:"bus",type:"noun"},
+    {jp:"晴れ",r:"はれ",romaji:"hare",en:"sunny / clear weather",type:"noun"},
+    {jp:"東",r:"ひがし",romaji:"hiがshi",en:"east",type:"noun"},
+    {jp:"左",r:"ひだり",romaji:"hiだri",en:"left",type:"noun"},
+    {jp:"右",r:"みぎ",romaji:"miぎ",en:"right (direction)",type:"noun"},
+    {jp:"道",r:"みち",romaji:"michi",en:"road / path",type:"noun"},
+    {jp:"南",r:"みなみ",romaji:"minami",en:"south",type:"noun"},
+    {jp:"向こう",r:"むこう",romaji:"mukou",en:"over there / the other side",type:"noun"},
+    {jp:"雪",r:"ゆき",romaji:"yuki",en:"snow",type:"noun"},
+    {jp:"廊下",r:"ろうか",romaji:"rouka",en:"corridor / hallway",type:"noun"},
+    {jp:"医者",r:"いしゃ",romaji:"いしゃ",en:"doctor",type:"noun"},
+    {jp:"一日",r:"いちにち",romaji:"いちにち",en:"one day / all day",type:"noun"},
+    {jp:"一緒",r:"いっしょ",romaji:"いっしょ",en:"together",type:"noun"},
+    {jp:"意味",r:"いみ",romaji:"いみ",en:"meaning",type:"noun"},
+    {jp:"入口",r:"いりぐち",romaji:"いりぐち",en:"entrance",type:"noun"},
+    {jp:"色",r:"いろ",romaji:"いろ",en:"colour",type:"noun"},
+    {jp:"海",r:"うみ",romaji:"うみ",en:"sea / ocean",type:"noun"},
+    {jp:"絵",r:"え",romaji:"え",en:"picture / painting",type:"noun"},
+    {jp:"大勢",r:"おおぜい",romaji:"おおぜい",en:"many people",type:"noun"},
+    {jp:"お酒",r:"おさけ",romaji:"おさけ",en:"alcohol / sake",type:"noun"},
+    {jp:"お皿",r:"おさら",romaji:"おさら",en:"plate / dish",type:"noun"},
+    {jp:"お弁当",r:"おべんとう",romaji:"おべんとう",en:"lunchbox / bento",type:"noun"},
+    {jp:"おまわりさん",r:"おまわりさん",romaji:"おまわりさん",en:"police officer (friendly)",type:"noun"},
+    {jp:"女の子",r:"おんなのこ",romaji:"おんなのこ",en:"girl",type:"noun"},
+    {jp:"外国",r:"がいこく",romaji:"がいこく",en:"foreign country",type:"noun"},
+    {jp:"外国人",r:"がいこくじん",romaji:"がいこくじん",en:"foreigner",type:"noun"},
+    {jp:"カップ",r:"カップ",romaji:"カップ",en:"cup",type:"noun"},
+    {jp:"家庭",r:"かてい",romaji:"かてい",en:"home / family",type:"noun"},
+    {jp:"かばん",r:"かばん",romaji:"かばん",en:"bag / briefcase",type:"noun"},
+    {jp:"花瓶",r:"かびん",romaji:"かびん",en:"vase",type:"noun"},
+    {jp:"カレー",r:"カレー",romaji:"カレー",en:"curry",type:"noun"},
+    {jp:"カレンダー",r:"カレンダー",romaji:"カレンダー",en:"calendar",type:"noun"},
+    {jp:"漢字",r:"かんじ",romaji:"かんじ",en:"kanji characters",type:"noun"},
+    {jp:"ギター",r:"ギター",romaji:"ギター",en:"guitar",type:"noun"},
+    {jp:"喫茶店",r:"きっさてん",romaji:"きっさてん",en:"coffee shop / cafe",type:"noun"},
+    {jp:"牛肉",r:"ぎゅうにく",romaji:"ぎゅうにく",en:"beef",type:"noun"},
+    {jp:"薬",r:"くすり",romaji:"くすり",en:"medicine / drug",type:"noun"},
+    {jp:"結婚",r:"けっこん",romaji:"けっこん",en:"marriage / wedding",type:"noun"},
+    {jp:"コップ",r:"コップ",romaji:"コップ",en:"cup / glass",type:"noun"},
+    {jp:"財布",r:"さいふ",romaji:"さいふ",en:"wallet / purse",type:"noun"},
+    {jp:"食堂",r:"しょくどう",romaji:"しょくどう",en:"dining hall / cafeteria",type:"noun"},
+    {jp:"ストーブ",r:"ストーブ",romaji:"ストーブ",en:"heater / stove",type:"noun"},
+    {jp:"スプーン",r:"スプーン",romaji:"スプーン",en:"spoon",type:"noun"},
+    {jp:"スリッパ",r:"スリッパ",romaji:"スリッパ",en:"slippers",type:"noun"},
+    {jp:"せっけん",r:"せっけん",romaji:"せっけん",en:"soap",type:"noun"},
+    {jp:"背広",r:"せびろ",romaji:"せびろ",en:"suit (clothing)",type:"noun"},
+    {jp:"タクシー",r:"タクシー",romaji:"タクシー",en:"taxi",type:"noun"},
+    {jp:"たて",r:"たて",romaji:"たて",en:"vertical / length",type:"noun"},
+    {jp:"卵",r:"たまご",romaji:"たまご",en:"egg",type:"noun"},
+    {jp:"テスト",r:"テスト",romaji:"テスト",en:"test / exam",type:"noun"},
+    {jp:"ナイフ",r:"ナイフ",romaji:"ナイフ",en:"knife",type:"noun"},
+    {jp:"夏休み",r:"なつやすみ",romaji:"なつやすみ",en:"summer holiday",type:"noun"},
+    {jp:"バター",r:"バター",romaji:"バター",en:"butter",type:"noun"},
+    {jp:"二十歳",r:"はたち",romaji:"はたち",en:"20 years old",type:"noun"},
+    {jp:"ハンカチ",r:"ハンカチ",romaji:"ハンカチ",en:"handkerchief",type:"noun"},
+    {jp:"病気",r:"びょうき",romaji:"びょうき",en:"illness / sickness",type:"noun"},
+    {jp:"プール",r:"プール",romaji:"プール",en:"swimming pool",type:"noun"},
+    {jp:"フォーク",r:"フォーク",romaji:"フォーク",en:"fork",type:"noun"},
+    {jp:"ベッド",r:"ベッド",romaji:"ベッド",en:"bed",type:"noun"},
+    {jp:"ペン",r:"ペン",romaji:"ペン",en:"pen",type:"noun"},
+    {jp:"帽子",r:"ぼうし",romaji:"ぼうし",en:"hat / cap",type:"noun"},
+    {jp:"ポスト",r:"ポスト",romaji:"ポスト",en:"mailbox / post",type:"noun"},
+    {jp:"毎朝",r:"まいあさ",romaji:"まいあさ",en:"every morning",type:"noun"},
+    {jp:"毎晩",r:"まいばん",romaji:"まいばん",en:"every evening",type:"noun"},
+    {jp:"前",r:"まえ",romaji:"まえ",en:"front / before",type:"noun"},
+    {jp:"八日",r:"ようか",romaji:"ようか",en:"8th day / eight days",type:"noun"},
+    {jp:"四日",r:"よっか",romaji:"よっか",en:"4th day / four days",type:"noun"},
+    {jp:"留学生",r:"りゅうがくせい",romaji:"りゅうがくせい",en:"international student",type:"noun"},
+    {jp:"走る",r:"はしる",romaji:"hashiru",en:"to run",type:"verb"},
+    {jp:"歩く",r:"あるく",romaji:"aruku",en:"to walk",type:"verb"},
+    {jp:"立つ",r:"たつ",romaji:"tatsu",en:"to stand",type:"verb"},
+    {jp:"座る",r:"すわる",romaji:"suwaru",en:"to sit",type:"verb"},
+    {jp:"開ける",r:"あける",romaji:"akeru",en:"to open",type:"verb"},
+    {jp:"閉める",r:"しめる",romaji:"shimeru",en:"to close",type:"verb"},
+    {jp:"上がる",r:"あがる",romaji:"agaru",en:"to go up",type:"verb"},
+    {jp:"下がる",r:"さがる",romaji:"sagaru",en:"to go down",type:"verb"},
+    {jp:"切る",r:"きる",romaji:"kiru",en:"to cut",type:"verb"},
+    {jp:"着る",r:"きる",romaji:"kiru",en:"to wear (top)",type:"verb"},
+    {jp:"脱ぐ",r:"ぬぐ",romaji:"nugu",en:"to take off",type:"verb"},
+    {jp:"持つ",r:"もつ",romaji:"motsu",en:"to hold / have",type:"verb"},
+    {jp:"置く",r:"おく",romaji:"oku",en:"to put / place",type:"verb"},
+    {jp:"もらう",r:"もらう",romaji:"morau",en:"to receive",type:"verb"},
+    {jp:"あげる",r:"あげる",romaji:"ageru",en:"to give",type:"verb"},
+    {jp:"くれる",r:"くれる",romaji:"kureru",en:"to give (to me)",type:"verb"},
+    {jp:"貸す",r:"かす",romaji:"kasu",en:"to lend",type:"verb"},
+    {jp:"借りる",r:"かりる",romaji:"kariru",en:"to borrow",type:"verb"},
+    {jp:"教える",r:"おしえる",romaji:"oshieru",en:"to teach / tell",type:"verb"},
+    {jp:"習う",r:"ならう",romaji:"narau",en:"to learn",type:"verb"},
+    {jp:"働く",r:"はたらく",romaji:"hataraku",en:"to work",type:"verb"},
+    {jp:"休む",r:"やすむ",romaji:"yasumu",en:"to rest",type:"verb"},
+    {jp:"遊ぶ",r:"あそぶ",romaji:"asobu",en:"to play",type:"verb"},
+    {jp:"泳ぐ",r:"およぐ",romaji:"oyogu",en:"to swim",type:"verb"},
+    {jp:"飛ぶ",r:"とぶ",romaji:"tobu",en:"to fly / jump",type:"verb"},
+    {jp:"降りる",r:"おりる",romaji:"oriru",en:"to get off",type:"verb"},
+    {jp:"知る",r:"しる",romaji:"shiru",en:"to know",type:"verb"},
+    {jp:"思う",r:"おもう",romaji:"omou",en:"to think",type:"verb"},
+    {jp:"見せる",r:"みせる",romaji:"miseru",en:"to show",type:"verb"},
+    {jp:"聞こえる",r:"きこえる",romaji:"kikoeru",en:"to be audible",type:"verb"},
+    {jp:"見える",r:"みえる",romaji:"mieru",en:"to be visible",type:"verb"},
+    {jp:"始める",r:"はじめる",romaji:"hajimeru",en:"to begin",type:"verb"},
+    {jp:"終わる",r:"おわる",romaji:"owaru",en:"to end / finish",type:"verb"},
+    {jp:"続ける",r:"つづける",romaji:"tsuzukeru",en:"to continue",type:"verb"},
+    {jp:"覚える",r:"おぼえる",romaji:"oboeru",en:"to memorise / remember",type:"verb"},
+    {jp:"忘れる",r:"わすれる",romaji:"wasureru",en:"to forget",type:"verb"},
+    {jp:"疲れる",r:"つかれる",romaji:"tsukareru",en:"to get tired",type:"verb"},
+    {jp:"起こる",r:"おこる",romaji:"okoru",en:"to happen / occur",type:"verb"},
+    {jp:"送る",r:"おくる",romaji:"okuru",en:"to send",type:"verb"},
+    {jp:"呼ぶ",r:"よぶ",romaji:"yobu",en:"to call / invite",type:"verb"},
+    {jp:"頼む",r:"たのむ",romaji:"tanomu",en:"to request / ask a favour",type:"verb"},
+    {jp:"答える",r:"こたえる",romaji:"kotaeru",en:"to answer",type:"verb"},
+    {jp:"考える",r:"かんがえる",romaji:"kangaeru",en:"to think / consider",type:"verb"},
+    {jp:"決める",r:"きめる",romaji:"kimeru",en:"to decide",type:"verb"},
+    {jp:"洗う",r:"あらう",romaji:"arau",en:"to wash",type:"verb"},
+    {jp:"掃除する",r:"そうじする",romaji:"soujisuru",en:"to clean",type:"verb"},
+    {jp:"料理する",r:"りょうりする",romaji:"ryourisuru",en:"to cook",type:"verb"},
+    {jp:"運転する",r:"うんてんする",romaji:"untensuru",en:"to drive",type:"verb"},
+    {jp:"電話する",r:"でんわする",romaji:"denwasuru",en:"to phone",type:"verb"},
+    {jp:"勉強する",r:"べんきょうする",romaji:"benkyousuru",en:"to study",type:"verb"},
+    {jp:"結婚する",r:"けっこんする",romaji:"kekonsuru",en:"to marry",type:"verb"},
+    {jp:"旅行する",r:"りょこうする",romaji:"ryokousuru",en:"to travel",type:"verb"},
+    {jp:"入れる",r:"いれる",romaji:"ireru",en:"to put in / insert",type:"verb"},
+    {jp:"出す",r:"だす",romaji:"dasu",en:"to take out / submit",type:"verb"},
+    {jp:"取る",r:"とる",romaji:"toru",en:"to take / grab",type:"verb"},
+    {jp:"見つける",r:"みつける",romaji:"mitsukeru",en:"to find",type:"verb"},
+    {jp:"なくす",r:"なくす",romaji:"nakusu",en:"to lose (something)",type:"verb"},
+    {jp:"着く",r:"つく",romaji:"tsuku",en:"to arrive",type:"verb"},
+    {jp:"曲がる",r:"まがる",romaji:"magaru",en:"to turn",type:"verb"},
+    {jp:"止まる",r:"とまる",romaji:"tomaru",en:"to stop",type:"verb"},
+    {jp:"通る",r:"とおる",romaji:"tooru",en:"to pass through",type:"verb"},
+    {jp:"渡る",r:"わたる",romaji:"wataru",en:"to cross",type:"verb"},
+    {jp:"選ぶ",r:"えらぶ",romaji:"erabu",en:"to choose / select",type:"verb"},
+    {jp:"比べる",r:"くらべる",romaji:"kuraberu",en:"to compare",type:"verb"},
+    {jp:"困る",r:"こまる",romaji:"komaru",en:"to be troubled / in trouble",type:"verb"},
+    {jp:"驚く",r:"おどろく",romaji:"odoroku",en:"to be surprised",type:"verb"},
+    {jp:"喜ぶ",r:"よろこぶ",romaji:"yorokobu",en:"to be pleased / rejoice",type:"verb"},
+    {jp:"怒る",r:"おこる",romaji:"okoru",en:"to get angry",type:"verb"},
+    {jp:"泣く",r:"なく",romaji:"naku",en:"to cry",type:"verb"},
+    {jp:"笑う",r:"わらう",romaji:"warau",en:"to laugh / smile",type:"verb"},
+    {jp:"急ぐ",r:"いそぐ",romaji:"isogu",en:"to hurry",type:"verb"},
+    {jp:"払う",r:"はらう",romaji:"harau",en:"to pay",type:"verb"},
+    {jp:"売る",r:"うる",romaji:"uru",en:"to sell",type:"verb"},
+    {jp:"増える",r:"ふえる",romaji:"fueru",en:"to increase",type:"verb"},
+    {jp:"減る",r:"へる",romaji:"heru",en:"to decrease",type:"verb"},
+    {jp:"太る",r:"ふとる",romaji:"futoru",en:"to gain weight",type:"verb"},
+    {jp:"痩せる",r:"やせる",romaji:"yaseru",en:"to lose weight / become thin",type:"verb"},
+    {jp:"泊まる",r:"とまる",romaji:"tomaru",en:"to stay overnight",type:"verb"},
+    {jp:"出かける",r:"でかける",romaji:"dekakeru",en:"to go out",type:"verb"},
+    {jp:"戻る",r:"もどる",romaji:"modoru",en:"to return / go back",type:"verb"},
+    {jp:"集まる",r:"あつまる",romaji:"atsumaru",en:"to gather / assemble",type:"verb"},
+    {jp:"別れる",r:"わかれる",romaji:"wakareru",en:"to part / separate",type:"verb"},
+    {jp:"似る",r:"にる",romaji:"niru",en:"to resemble / be similar",type:"verb"},
+    {jp:"足りる",r:"たりる",romaji:"tariru",en:"to be enough / sufficient",type:"verb"},
+    {jp:"つける",r:"つける",romaji:"tsukeru",en:"to turn on",type:"verb"},
+    {jp:"消す",r:"けす",romaji:"kesu",en:"to turn off / to erase",type:"verb"},
+    {jp:"住む",r:"すむ",romaji:"sumu",en:"to live / to reside",type:"verb"},
+    {jp:"練習する",r:"れんしゅうする",romaji:"renshuu suru",en:"to practice",type:"verb"},
+    {jp:"始まる",r:"はじまる",romaji:"hajimaru",en:"to begin",type:"verb"},
+    {jp:"違う",r:"ちがう",romaji:"chigau",en:"different / wrong",type:"verb"},
+    {jp:"開く",r:"あく",romaji:"aku",en:"to open (intransitive)",type:"verb"},
+    {jp:"あびる",r:"あびる",romaji:"aびru",en:"to take a shower",type:"verb"},
+    {jp:"歌う",r:"うたう",romaji:"utau",en:"to sing",type:"verb"},
+    {jp:"生まれる",r:"うまれる",romaji:"umareru",en:"to be born",type:"verb"},
+    {jp:"押す",r:"おす",romaji:"osu",en:"to push",type:"verb"},
+    {jp:"返す",r:"かえす",romaji:"kaesu",en:"to return something",type:"verb"},
+    {jp:"かかる",r:"かかる",romaji:"kakaru",en:"to take (time/money)",type:"verb"},
+    {jp:"かける",r:"かける",romaji:"kakeru",en:"to hang / to make a call",type:"verb"},
+    {jp:"消える",r:"きえる",romaji:"kieru",en:"to disappear / to go out",type:"verb"},
+    {jp:"咲く",r:"さく",romaji:"saku",en:"to bloom",type:"verb"},
+    {jp:"死ぬ",r:"しぬ",romaji:"shinu",en:"to die",type:"verb"},
+    {jp:"閉まる",r:"しまる",romaji:"shimaru",en:"to close (intransitive)",type:"verb"},
+    {jp:"登る",r:"のぼる",romaji:"のぼる",en:"to climb / to go up",type:"verb"},
+    {jp:"長い",r:"ながい",romaji:"nagai",en:"long",type:"adj"},
+    {jp:"短い",r:"みじかい",romaji:"mijikai",en:"short",type:"adj"},
+    {jp:"白い",r:"しろい",romaji:"shiroi",en:"white",type:"adj"},
+    {jp:"黒い",r:"くろい",romaji:"kuroi",en:"black",type:"adj"},
+    {jp:"赤い",r:"あかい",romaji:"akai",en:"red",type:"adj"},
+    {jp:"青い",r:"あおい",romaji:"aoi",en:"blue / green",type:"adj"},
+    {jp:"黄色い",r:"きいろい",romaji:"kiiroi",en:"yellow",type:"adj"},
+    {jp:"茶色い",r:"ちゃいろい",romaji:"chairoi",en:"brown",type:"adj"},
+    {jp:"冷たい",r:"つめたい",romaji:"tsumetai",en:"cold (to touch)",type:"adj"},
+    {jp:"良い",r:"よい・いい",romaji:"yoi / ii",en:"good",type:"adj"},
+    {jp:"多い",r:"おおい",romaji:"ooi",en:"many / much",type:"adj"},
+    {jp:"少ない",r:"すくない",romaji:"sukunai",en:"few / little",type:"adj"},
+    {jp:"広い",r:"ひろい",romaji:"hiroi",en:"wide / spacious",type:"adj"},
+    {jp:"狭い",r:"せまい",romaji:"semai",en:"narrow / small",type:"adj"},
+    {jp:"重い",r:"おもい",romaji:"omoi",en:"heavy",type:"adj"},
+    {jp:"軽い",r:"かるい",romaji:"karui",en:"light",type:"adj"},
+    {jp:"強い",r:"つよい",romaji:"tsuyoi",en:"strong",type:"adj"},
+    {jp:"弱い",r:"よわい",romaji:"yowai",en:"weak",type:"adj"},
+    {jp:"難しい",r:"むずかしい",romaji:"muzukashii",en:"difficult",type:"adj"},
+    {jp:"易しい",r:"やさしい",romaji:"yasashii",en:"easy",type:"adj"},
+    {jp:"面白い",r:"おもしろい",romaji:"omoshiroi",en:"interesting / funny",type:"adj"},
+    {jp:"つまらない",r:"つまらない",romaji:"tsumaranai",en:"boring",type:"adj"},
+    {jp:"嬉しい",r:"うれしい",romaji:"ureshii",en:"happy / glad",type:"adj"},
+    {jp:"悲しい",r:"かなしい",romaji:"kanashii",en:"sad",type:"adj"},
+    {jp:"怖い",r:"こわい",romaji:"kowai",en:"scary",type:"adj"},
+    {jp:"痛い",r:"いたい",romaji:"itai",en:"painful",type:"adj"},
+    {jp:"眠い",r:"ねむい",romaji:"nemui",en:"sleepy",type:"adj"},
+    {jp:"忙しい",r:"いそがしい",romaji:"isogashii",en:"busy",type:"adj"},
+    {jp:"好き",r:"すき",romaji:"suki",en:"like / fond of",type:"adj"},
+    {jp:"嫌い",r:"きらい",romaji:"kirai",en:"dislike",type:"adj"},
+    {jp:"上手",r:"じょうず",romaji:"jouzu",en:"skilled / good at",type:"adj"},
+    {jp:"下手",r:"へた",romaji:"heta",en:"unskilled / bad at",type:"adj"},
+    {jp:"有名",r:"ゆうめい",romaji:"yuumei",en:"famous",type:"adj"},
+    {jp:"大切",r:"たいせつ",romaji:"taisetsu",en:"important / precious",type:"adj"},
+    {jp:"大丈夫",r:"だいじょうぶ",romaji:"daijoubu",en:"okay / all right",type:"adj"},
+    {jp:"丸い",r:"まるい",romaji:"marui",en:"round / circular",type:"adj"},
+    {jp:"明るい",r:"あかるい",romaji:"akarui",en:"bright / cheerful",type:"adj"},
+    {jp:"暗い",r:"くらい",romaji:"kurai",en:"dark / gloomy",type:"adj"},
+    {jp:"うるさい",r:"うるさい",romaji:"urusai",en:"noisy / annoying",type:"adj"},
+    {jp:"静か",r:"しずか",romaji:"shizuka",en:"quiet / calm",type:"adj"},
+    {jp:"綺麗",r:"きれい",romaji:"kirei",en:"pretty / clean",type:"adj"},
+    {jp:"汚い",r:"きたない",romaji:"kitanai",en:"dirty / messy",type:"adj"},
+    {jp:"甘い",r:"あまい",romaji:"amai",en:"sweet",type:"adj"},
+    {jp:"辛い",r:"からい",romaji:"karai",en:"spicy / hot",type:"adj"},
+    {jp:"苦い",r:"にがい",romaji:"nigai",en:"bitter",type:"adj"},
+    {jp:"正しい",r:"ただしい",romaji:"tadashii",en:"correct / right",type:"adj"},
+    {jp:"危ない",r:"あぶない",romaji:"abunai",en:"dangerous",type:"adj"},
+    {jp:"大変",r:"たいへん",romaji:"taihen",en:"difficult / serious / very",type:"adj"},
+    {jp:"親切",r:"しんせつ",romaji:"shinsetsu",en:"kind / helpful",type:"adj"},
+    {jp:"便利",r:"べんり",romaji:"benri",en:"convenient",type:"adj"},
+    {jp:"必要",r:"ひつよう",romaji:"hitsuyou",en:"necessary / need",type:"adj"},
+    {jp:"簡単",r:"かんたん",romaji:"kantan",en:"simple / easy",type:"adj"},
+    {jp:"普通",r:"ふつう",romaji:"futsuu",en:"normal / ordinary",type:"adj"},
+    {jp:"特別",r:"とくべつ",romaji:"tokubetsu",en:"special",type:"adj"},
+    {jp:"暖かい",r:"あたたかい",romaji:"atatakai",en:"warm",type:"adj"},
+    {jp:"涼しい",r:"すずしい",romaji:"suzushii",en:"cool / refreshing",type:"adj"},
+    {jp:"寂しい",r:"さびしい",romaji:"sabishii",en:"lonely",type:"adj"},
+    {jp:"恥ずかしい",r:"はずかしい",romaji:"hazukashii",en:"embarrassing / shy",type:"adj"},
+    {jp:"懐かしい",r:"なつかしい",romaji:"natsukashii",en:"nostalgic",type:"adj"},
+    {jp:"珍しい",r:"めずらしい",romaji:"mezurashii",en:"rare / unusual",type:"adj"},
+    {jp:"低い",r:"ひくい",romaji:"hikui",en:"low / short (height)",type:"adj"},
+    {jp:"近い",r:"ちかい",romaji:"chikai",en:"near / close",type:"adj"},
+    {jp:"遠い",r:"とおい",romaji:"tooi",en:"far",type:"adj"},
+    {jp:"温かい",r:"あたたかい",romaji:"atatakai",en:"warm",type:"adj"},
+    {jp:"硬い",r:"かたい",romaji:"katai",en:"hard / firm",type:"adj"},
+    {jp:"柔らかい",r:"やわらかい",romaji:"yawarakai",en:"soft",type:"adj"},
+    {jp:"酸っぱい",r:"すっぱい",romaji:"suppai",en:"sour",type:"adj"},
+    {jp:"おいしい",r:"おいしい",romaji:"oishii",en:"delicious / tasty",type:"adj"},
+    {jp:"まずい",r:"まずい",romaji:"mazui",en:"bad tasting",type:"adj"},
+    {jp:"かわいい",r:"かわいい",romaji:"kawaii",en:"cute / adorable",type:"adj"},
+    {jp:"きれい",r:"きれい",romaji:"kirei",en:"beautiful / clean",type:"adj"},
+    {jp:"にぎやか",r:"にぎやか",romaji:"nigiyaka",en:"lively / bustling",type:"adj"},
+    {jp:"同じ",r:"おなじ",romaji:"onaji",en:"same",type:"adj"},
+    {jp:"楽しい",r:"たのしい",romaji:"tanoshii",en:"fun / enjoyable",type:"adj"},
+    {jp:"若い",r:"わかい",romaji:"wakai",en:"young",type:"adj"},
+    {jp:"どんな",r:"どんな",romaji:"donna",en:"what kind of",type:"adj"},
+    {jp:"薄い",r:"うすい",romaji:"usui",en:"thin / light (colour)",type:"adj"},
+    {jp:"元気",r:"げんき",romaji:"げnki",en:"healthy / energetic",type:"adj"},
+    {jp:"太い",r:"ふとい",romaji:"futoi",en:"fat / thick",type:"adj"},
+    {jp:"細い",r:"ほそい",romaji:"hosoi",en:"thin / slender",type:"adj"},
+    {jp:"嫌",r:"いや",romaji:"いや",en:"unpleasant / dislike",type:"adj"},
+    {jp:"大きな",r:"おおきな",romaji:"おおきな",en:"big / large",type:"adj"},
+    {jp:"おはようございます",r:"おはようございます",romaji:"ohayou gozaimasu",en:"good morning (polite)",type:"phrase"},
+    {jp:"こんばんは",r:"こんばんは",romaji:"konbanwa",en:"good evening",type:"phrase"},
+    {jp:"おやすみ",r:"おやすみ",romaji:"oyasumi",en:"good night (casual)",type:"phrase"},
+    {jp:"さようなら",r:"さようなら",romaji:"sayounara",en:"goodbye",type:"phrase"},
+    {jp:"ありがとうございます",r:"ありがとうございます",romaji:"arigatou gozaimasu",en:"thank you (polite)",type:"phrase"},
+    {jp:"ごめんなさい",r:"ごめんなさい",romaji:"gomennasai",en:"I am sorry",type:"phrase"},
+    {jp:"はい",r:"はい",romaji:"hai",en:"yes",type:"phrase"},
+    {jp:"いいえ",r:"いいえ",romaji:"iie",en:"no",type:"phrase"},
+    {jp:"どうぞ",r:"どうぞ",romaji:"douzo",en:"please / go ahead",type:"phrase"},
+    {jp:"どうも",r:"どうも",romaji:"doumo",en:"thanks / somehow",type:"phrase"},
+    {jp:"いただきます",r:"いただきます",romaji:"itadakimasu",en:"let's eat (before meals)",type:"phrase"},
+    {jp:"ごちそうさま",r:"ごちそうさま",romaji:"gochisousama",en:"thank you for the meal",type:"phrase"},
+    {jp:"よろしく",r:"よろしく",romaji:"yoroshiku",en:"nice to meet you / regards",type:"phrase"},
+    {jp:"初めまして",r:"はじめまして",romaji:"hajimemashite",en:"nice to meet you (first time)",type:"phrase"},
+    {jp:"ちょっと",r:"ちょっと",romaji:"chotto",en:"a little / just a moment",type:"adv"},
+    {jp:"少し",r:"すこし",romaji:"sukoshi",en:"a little / a bit",type:"adv"},
+    {jp:"たくさん",r:"たくさん",romaji:"takusan",en:"a lot / many",type:"adv"},
+    {jp:"一番",r:"いちばん",romaji:"ichiban",en:"the most / number one",type:"adv"},
+    {jp:"全然",r:"ぜんぜん",romaji:"zenzen",en:"not at all",type:"adv"},
+    {jp:"だから",r:"だから",romaji:"dakara",en:"therefore / so",type:"conj"},
+    {jp:"でも",r:"でも",romaji:"demo",en:"but / however",type:"conj"},
+    {jp:"そして",r:"そして",romaji:"soshite",en:"and then / and",type:"conj"},
+    {jp:"それから",r:"それから",romaji:"sorekara",en:"after that / and then",type:"conj"},
+    {jp:"よく",r:"よく",romaji:"yoku",en:"often / well",type:"adv"},
+    {jp:"時々",r:"ときどき",romaji:"tokidoki",en:"sometimes",type:"adv"},
+    {jp:"絶対",r:"ぜったい",romaji:"zettai",en:"absolutely / definitely",type:"adv"},
+    {jp:"多分",r:"たぶん",romaji:"tabun",en:"probably / maybe",type:"adv"},
+    {jp:"やっと",r:"やっと",romaji:"yatto",en:"finally / at last",type:"adv"},
+    {jp:"すぐ",r:"すぐ",romaji:"sugu",en:"immediately / soon",type:"adv"},
+    {jp:"ゆっくり",r:"ゆっくり",romaji:"yukkuri",en:"slowly / leisurely",type:"adv"},
+    {jp:"突然",r:"とつぜん",romaji:"totsuzen",en:"suddenly",type:"adv"},
+    {jp:"特に",r:"とくに",romaji:"tokuni",en:"especially / particularly",type:"adv"},
+    {jp:"ずっと",r:"ずっと",romaji:"zutto",en:"all along / the whole time",type:"adv"},
+    {jp:"もうすぐ",r:"もうすぐ",romaji:"mousugu",en:"very soon / almost",type:"adv"},
+    {jp:"どうして",r:"どうして",romaji:"dooshite",en:"why",type:"adv"},
+    {jp:"どのくらい",r:"どのくらい",romaji:"donokurai",en:"how much / how long",type:"adv"},
+    {jp:"すごく",r:"すごく",romaji:"sugoku",en:"very / incredibly",type:"adv"},
+    {jp:"たまに",r:"たまに",romaji:"tama ni",en:"occasionally",type:"adv"},
+    {jp:"本当に",r:"ほんとうに",romaji:"hontooni",en:"really / truly",type:"adv"},
+    {jp:"たぶん",r:"たぶん",romaji:"tabun",en:"probably / perhaps",type:"adv"},
+    {jp:"きっと",r:"きっと",romaji:"kitto",en:"surely / certainly",type:"adv"},
+    {jp:"一緒に",r:"いっしょに",romaji:"issho ni",en:"together",type:"adv"},
+    {jp:"しかし",r:"しかし",romaji:"shikashi",en:"however / but",type:"adv"},
+    {jp:"ところで",r:"ところで",romaji:"tokorode",en:"by the way",type:"adv"},
+    {jp:"やはり",r:"やはり",romaji:"yahari",en:"after all / as expected",type:"adv"},
+    {jp:"はじめまして",r:"はじめまして",romaji:"hajimemashite",en:"nice to meet you",type:"phrase"},
+    {jp:"どうぞよろしく",r:"どうぞよろしく",romaji:"doozo yoroshiku",en:"pleased to meet you",type:"phrase"},
+    {jp:"いってきます",r:"いってきます",romaji:"ittekimasu",en:"I'm off / see you later",type:"phrase"},
+    {jp:"いってらっしゃい",r:"いってらっしゃい",romaji:"itterasshai",en:"take care / see you",type:"phrase"},
+    {jp:"ただいま",r:"ただいま",romaji:"tadaima",en:"I'm home",type:"phrase"},
+    {jp:"おかえり",r:"おかえり",romaji:"okaeri",en:"welcome home",type:"phrase"},
+    {jp:"あまり",r:"あまり",romaji:"amari",en:"not very / not much",type:"adv"},
+    {jp:"いかが",r:"いかが",romaji:"ikaが",en:"how about / how is",type:"adv"},
+    {jp:"五日",r:"いつか",romaji:"itsuka",en:"someday / sometime",type:"adv"},
+    {jp:"まっすぐ",r:"まっすぐ",romaji:"maっsuぐ",en:"straight ahead",type:"adv"},
+    {jp:"いろいろ",r:"いろいろ",romaji:"いろいろ",en:"various / all kinds of",type:"adv"},
+    {jp:"ええ",r:"ええ",romaji:"ええ",en:"yes (casual)",type:"phrase"},
+    {jp:"じゃあ",r:"じゃ",romaji:"じゃ",en:"well then / OK then",type:"phrase"},
+    {jp:"では",r:"では",romaji:"では",en:"well then / in that case",type:"phrase"},
+    {jp:"初めて",r:"はじめて",romaji:"はじめて",en:"for the first time",type:"adv"},
+    {jp:"秒",r:"びょう",romaji:"byoo",en:"second",type:"counter"},
+    {jp:"週",r:"しゅう",romaji:"shuu",en:"week",type:"counter"},
+    {jp:"ひとつ",r:"ひとつ",romaji:"hitotsu",en:"one (native Japanese)",type:"counter"},
+    {jp:"ふたつ",r:"ふたつ",romaji:"futatsu",en:"two (native Japanese)",type:"counter"},
+    {jp:"みっつ",r:"みっつ",romaji:"mittsu",en:"three (native Japanese)",type:"counter"},
+    {jp:"よっつ",r:"よっつ",romaji:"yottsu",en:"four (native Japanese)",type:"counter"},
+    {jp:"いつつ",r:"いつつ",romaji:"itsutsu",en:"five (native Japanese)",type:"counter"},
+    {jp:"むっつ",r:"むっつ",romaji:"muttsu",en:"six (native Japanese)",type:"counter"},
+    {jp:"ななつ",r:"ななつ",romaji:"nanatsu",en:"seven (native Japanese)",type:"counter"},
+    {jp:"やっつ",r:"やっつ",romaji:"yattsu",en:"eight (native Japanese)",type:"counter"},
+    {jp:"ここのつ",r:"ここのつ",romaji:"kokonotsu",en:"nine (native Japanese)",type:"counter"},
+    {jp:"とお",r:"とお",romaji:"too",en:"ten (native Japanese)",type:"counter"},
+    {jp:"グラム",r:"グラム",romaji:"グラム",en:"gram",type:"counter"}
   ],
   N4:[
     {jp:"運動",r:"うんどう",en:"exercise",type:"noun"},{jp:"料理",r:"りょうり",romaji:"ryouri",en:"cooking",type:"noun"},
@@ -790,7 +1357,9 @@ const VOCAB_KEY = "jlpt_vocab_v2";
 
 let progress = {};
 let vocabData = {};
-let quizQueue = [];
+let quizQueue = [,
+    {jp:"いる",r:"いる",romaji:"iru",en:"to exist (animate)",type:"verb"},{jp:"ある",r:"ある",romaji:"aru",en:"to exist (inanimate)",type:"verb"},{jp:"する",r:"する",romaji:"suru",en:"to do",type:"verb"},{jp:"くる",r:"くる",romaji:"kuru",en:"to come",type:"verb"},{jp:"いく",r:"いく",romaji:"iku",en:"to go",type:"verb"},{jp:"つける",r:"つける",romaji:"tsukeru",en:"to turn on",type:"verb"},{jp:"消す",r:"けす",romaji:"kesu",en:"to turn off / to erase",type:"verb"},{jp:"住む",r:"すむ",romaji:"sumu",en:"to live / to reside",type:"verb"},{jp:"練習する",r:"れんしゅうする",romaji:"renshuu suru",en:"to practice",type:"verb"},{jp:"始まる",r:"はじまる",romaji:"hajimaru",en:"to begin",type:"verb"},{jp:"低い",r:"ひくい",romaji:"hikui",en:"low / short (height)",type:"adj"},{jp:"速い",r:"はやい",romaji:"hayai",en:"fast / quick",type:"adj"},{jp:"近い",r:"ちかい",romaji:"chikai",en:"near / close",type:"adj"},{jp:"遠い",r:"とおい",romaji:"tooi",en:"far",type:"adj"},{jp:"温かい",r:"あたたかい",romaji:"atatakai",en:"warm",type:"adj"},{jp:"硬い",r:"かたい",romaji:"katai",en:"hard / firm",type:"adj"},{jp:"柔らかい",r:"やわらかい",romaji:"yawarakai",en:"soft",type:"adj"},{jp:"酸っぱい",r:"すっぱい",romaji:"suppai",en:"sour",type:"adj"},{jp:"おいしい",r:"おいしい",romaji:"oishii",en:"delicious / tasty",type:"adj"},{jp:"まずい",r:"まずい",romaji:"mazui",en:"bad tasting",type:"adj"},{jp:"かわいい",r:"かわいい",romaji:"kawaii",en:"cute / adorable",type:"adj"},{jp:"きれい",r:"きれい",romaji:"kirei",en:"beautiful / clean",type:"adj"},{jp:"にぎやか",r:"にぎやか",romaji:"nigiyaka",en:"lively / bustling",type:"adj"},{jp:"同じ",r:"おなじ",romaji:"onaji",en:"same",type:"adj"},{jp:"違う",r:"ちがう",romaji:"chigau",en:"different / wrong",type:"verb"},{jp:"楽しい",r:"たのしい",romaji:"tanoshii",en:"fun / enjoyable",type:"adj"},{jp:"若い",r:"わかい",romaji:"wakai",en:"young",type:"adj"},{jp:"わたし",r:"わたし",romaji:"watashi",en:"I / me",type:"noun"},{jp:"かれ",r:"かれ",romaji:"kare",en:"he / him / boyfriend",type:"noun"},{jp:"かのじょ",r:"かのじょ",romaji:"kanojo",en:"she / her / girlfriend",type:"noun"},{jp:"わたしたち",r:"わたしたち",romaji:"watashitachi",en:"we / us",type:"noun"},{jp:"みんな",r:"みんな",romaji:"minna",en:"everyone / all",type:"noun"},{jp:"だれ",r:"だれ",romaji:"dare",en:"who",type:"noun"},{jp:"どなた",r:"どなた",romaji:"donata",en:"who (polite)",type:"noun"},{jp:"なに",r:"なに",romaji:"nani",en:"what",type:"noun"},{jp:"どうして",r:"どうして",romaji:"dooshite",en:"why",type:"adv"},{jp:"どのくらい",r:"どのくらい",romaji:"donokurai",en:"how much / how long",type:"adv"},{jp:"どんな",r:"どんな",romaji:"donna",en:"what kind of",type:"adj"},{jp:"どちら",r:"どちら",romaji:"dochira",en:"which (of two)",type:"noun"},{jp:"今月",r:"こんげつ",romaji:"kongetsu",en:"this month",type:"noun"},{jp:"来月",r:"らいげつ",romaji:"raigetsu",en:"next month",type:"noun"},{jp:"先月",r:"せんげつ",romaji:"sengetsu",en:"last month",type:"noun"},{jp:"晩",r:"ばん",romaji:"ban",en:"evening",type:"noun"},{jp:"秒",r:"びょう",romaji:"byoo",en:"second",type:"counter"},{jp:"週",r:"しゅう",romaji:"shuu",en:"week",type:"counter"},{jp:"ひとつ",r:"ひとつ",romaji:"hitotsu",en:"one (native Japanese)",type:"counter"},{jp:"ふたつ",r:"ふたつ",romaji:"futatsu",en:"two (native Japanese)",type:"counter"},{jp:"みっつ",r:"みっつ",romaji:"mittsu",en:"three (native Japanese)",type:"counter"},{jp:"よっつ",r:"よっつ",romaji:"yottsu",en:"four (native Japanese)",type:"counter"},{jp:"いつつ",r:"いつつ",romaji:"itsutsu",en:"five (native Japanese)",type:"counter"},{jp:"むっつ",r:"むっつ",romaji:"muttsu",en:"six (native Japanese)",type:"counter"},{jp:"ななつ",r:"ななつ",romaji:"nanatsu",en:"seven (native Japanese)",type:"counter"},{jp:"やっつ",r:"やっつ",romaji:"yattsu",en:"eight (native Japanese)",type:"counter"},{jp:"ここのつ",r:"ここのつ",romaji:"kokonotsu",en:"nine (native Japanese)",type:"counter"},{jp:"とお",r:"とお",romaji:"too",en:"ten (native Japanese)",type:"counter"},{jp:"両親",r:"りょうしん",romaji:"ryooshin",en:"parents",type:"noun"},{jp:"首",r:"くび",romaji:"kubi",en:"neck",type:"noun"},{jp:"肩",r:"かた",romaji:"kata",en:"shoulder",type:"noun"},{jp:"腕",r:"うで",romaji:"ude",en:"arm",type:"noun"},{jp:"指",r:"ゆび",romaji:"yubi",en:"finger",type:"noun"},{jp:"背",r:"せ",romaji:"se",en:"back / height",type:"noun"},{jp:"ごはん",r:"ごはん",romaji:"gohan",en:"rice / meal",type:"noun"},{jp:"ジュース",r:"じゅーす",romaji:"juusu",en:"juice",type:"noun"},{jp:"塩",r:"しお",romaji:"shio",en:"salt",type:"noun"},{jp:"砂糖",r:"さとう",romaji:"satoo",en:"sugar",type:"noun"},{jp:"醤油",r:"しょうゆ",romaji:"shooyu",en:"soy sauce",type:"noun"},{jp:"朝ごはん",r:"あさごはん",romaji:"asagohan",en:"breakfast",type:"noun"},{jp:"昼ごはん",r:"ひるごはん",romaji:"hirugohan",en:"lunch",type:"noun"},{jp:"晩ごはん",r:"ばんごはん",romaji:"bangohan",en:"dinner",type:"noun"},{jp:"玄関",r:"げんかん",romaji:"genkan",en:"entrance / front door",type:"noun"},{jp:"お手洗い",r:"おてあらい",romaji:"otearai",en:"toilet / restroom",type:"noun"},{jp:"風呂",r:"ふろ",romaji:"furo",en:"bath",type:"noun"},{jp:"庭",r:"にわ",romaji:"niwa",en:"garden / yard",type:"noun"},{jp:"村",r:"むら",romaji:"mura",en:"village",type:"noun"},{jp:"本屋",r:"ほんや",romaji:"honya",en:"bookstore",type:"noun"},{jp:"酒屋",r:"さかや",romaji:"sakaya",en:"liquor store",type:"noun"},{jp:"肉屋",r:"にくや",romaji:"nikuya",en:"butcher",type:"noun"},{jp:"魚屋",r:"さかなや",romaji:"sakanaya",en:"fish shop",type:"noun"},{jp:"花屋",r:"はなや",romaji:"hanaya",en:"flower shop",type:"noun"},{jp:"美容院",r:"びよういん",romaji:"biyooin",en:"hair salon",type:"noun"},{jp:"映画館",r:"えいがかん",romaji:"eigakan",en:"cinema / movie theater",type:"noun"},{jp:"交差点",r:"こうさてん",romaji:"koosaten",en:"intersection",type:"noun"},{jp:"信号",r:"しんごう",romaji:"shingoo",en:"traffic light",type:"noun"},{jp:"角",r:"かど",romaji:"kado",en:"corner",type:"noun"},{jp:"飛行機",r:"ひこうき",romaji:"hikooki",en:"airplane",type:"noun"},{jp:"船",r:"ふね",romaji:"fune",en:"ship / boat",type:"noun"},{jp:"バイク",r:"ばいく",romaji:"baiku",en:"motorcycle",type:"noun"},{jp:"切符",r:"きっぷ",romaji:"kippu",en:"ticket",type:"noun"},{jp:"乗り物",r:"のりもの",romaji:"norimono",en:"vehicle / transportation",type:"noun"},{jp:"傘",r:"かさ",romaji:"kasa",en:"umbrella",type:"noun"},{jp:"眼鏡",r:"めがね",romaji:"megane",en:"glasses / spectacles",type:"noun"},{jp:"カメラ",r:"かめら",romaji:"kamera",en:"camera",type:"noun"},{jp:"パソコン",r:"ぱそこん",romaji:"pasokon",en:"computer / PC",type:"noun"},{jp:"階段",r:"かいだん",romaji:"kaidan",en:"stairs",type:"noun"},{jp:"エレベーター",r:"えれべーたー",romaji:"erebeetaa",en:"elevator",type:"noun"},{jp:"ごみ",r:"ごみ",romaji:"gomi",en:"garbage / trash",type:"noun"},{jp:"シャツ",r:"しゃつ",romaji:"shatsu",en:"shirt",type:"noun"},{jp:"ズボン",r:"ずぼん",romaji:"zubon",en:"trousers / pants",type:"noun"},{jp:"スカート",r:"すかーと",romaji:"sukaato",en:"skirt",type:"noun"},{jp:"コート",r:"こーと",romaji:"kooto",en:"coat",type:"noun"},{jp:"靴下",r:"くつした",romaji:"kutsushita",en:"socks",type:"noun"},{jp:"森",r:"もり",romaji:"mori",en:"forest / woods",type:"noun"},{jp:"野原",r:"のはら",romaji:"nohara",en:"field / plain",type:"noun"},{jp:"地面",r:"じめん",romaji:"jimen",en:"ground / surface",type:"noun"},{jp:"成績",r:"せいせき",romaji:"seiseki",en:"grades / results",type:"noun"},{jp:"教室",r:"きょうしつ",romaji:"kyooshitsu",en:"classroom",type:"noun"},{jp:"黒板",r:"こくばん",romaji:"kokuban",en:"blackboard",type:"noun"},{jp:"ノート",r:"のーと",romaji:"nooto",en:"notebook",type:"noun"},{jp:"鉛筆",r:"えんぴつ",romaji:"enpitsu",en:"pencil",type:"noun"},{jp:"消しゴム",r:"けしごむ",romaji:"keshigomu",en:"eraser",type:"noun"},{jp:"定規",r:"じょうぎ",romaji:"joogi",en:"ruler",type:"noun"},{jp:"すごく",r:"すごく",romaji:"sugoku",en:"very / incredibly",type:"adv"},{jp:"たまに",r:"たまに",romaji:"tama ni",en:"occasionally",type:"adv"},{jp:"本当に",r:"ほんとうに",romaji:"hontooni",en:"really / truly",type:"adv"},{jp:"たぶん",r:"たぶん",romaji:"tabun",en:"probably / perhaps",type:"adv"},{jp:"きっと",r:"きっと",romaji:"kitto",en:"surely / certainly",type:"adv"},{jp:"一緒に",r:"いっしょに",romaji:"issho ni",en:"together",type:"adv"},{jp:"しかし",r:"しかし",romaji:"shikashi",en:"however / but",type:"adv"},{jp:"ところで",r:"ところで",romaji:"tokorode",en:"by the way",type:"adv"},{jp:"やはり",r:"やはり",romaji:"yahari",en:"after all / as expected",type:"adv"},{jp:"はじめまして",r:"はじめまして",romaji:"hajimemashite",en:"nice to meet you",type:"phrase"},{jp:"どうぞよろしく",r:"どうぞよろしく",romaji:"doozo yoroshiku",en:"pleased to meet you",type:"phrase"},{jp:"いってきます",r:"いってきます",romaji:"ittekimasu",en:"I'm off / see you later",type:"phrase"},{jp:"いってらっしゃい",r:"いってらっしゃい",romaji:"itterasshai",en:"take care / see you",type:"phrase"},{jp:"ただいま",r:"ただいま",romaji:"tadaima",en:"I'm home",type:"phrase"},{jp:"おかえり",r:"おかえり",romaji:"okaeri",en:"welcome home",type:"phrase"}
+  ];
 let currentWord = null;
 let answered = false;
 let mode = "multiple";
@@ -1593,16 +2162,20 @@ function showSummary() {
 // ── Speech ────────────────────────────────────────────────────────────────────
 let japaneseVoice = null;
 function initVoices() {
+  if (!('speechSynthesis' in window)) return;
   const voices = speechSynthesis.getVoices();
   japaneseVoice = voices.find(v => v.lang.startsWith("ja")) || null;
   const btn = document.getElementById("speak-btn");
   if (btn) btn.style.display = japaneseVoice ? "inline-block" : "none";
 }
-speechSynthesis.onvoiceschanged = initVoices;
-initVoices();
+if ('speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = initVoices;
+  initVoices();
+}
 
 function speakWord() {
   if (!currentWord) return;
+  if (!('speechSynthesis' in window)) return;
   const utterance = new SpeechSynthesisUtterance(currentWord.jp || currentWord.r);
   utterance.lang = "ja-JP";
   if (japaneseVoice) utterance.voice = japaneseVoice;
@@ -1610,6 +2183,7 @@ function speakWord() {
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
+
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById("speak-btn").onclick = speakWord;
@@ -1890,10 +2464,7 @@ document.getElementById("gist-backup-btn").onclick = gistBackup;
 document.getElementById("gist-restore-btn").onclick = gistRestore;
 
 // ── Leeches screen (FIX 5) ────────────────────────────────────────────────────
-document.getElementById("leeches-nav-btn").onclick = () => {
-  renderLeeches();
-  showScreen("leeches-screen");
-};
+// leeches-nav-btn removed from UI — leeches screen kept in DOM for reference
 document.getElementById("leeches-back-btn").onclick = () => showScreen("home-screen");
 
 function renderLeeches() {
@@ -2191,10 +2762,415 @@ document.querySelectorAll("#lessons-level-toggle .mode-btn").forEach(btn => {
   };
 });
 
+// ── BRUTE FORCE DRILL ────────────────────────────────────────────────────────
+
+const DRILL_CATEGORIES = [
+  { name: 'Numbers & Counting', words: [
+    {k:'いち',r:['ichi'],e:'one'},{k:'に',r:['ni'],e:'two'},{k:'さん',r:['san'],e:'three'},
+    {k:'よん',r:['yon','shi'],e:'four'},{k:'ご',r:['go'],e:'five'},{k:'ろく',r:['roku'],e:'six'},
+    {k:'なな',r:['nana','shichi'],e:'seven'},{k:'はち',r:['hachi'],e:'eight'},
+    {k:'きゅう',r:['kyuu','kyu','ku'],e:'nine'},{k:'じゅう',r:['juu','ju'],e:'ten'},
+    {k:'ひゃく',r:['hyaku'],e:'hundred'},{k:'せん',r:['sen'],e:'thousand'},{k:'まん',r:['man'],e:'ten thousand'}
+  ]},
+  { name: 'Days of the Week', words: [
+    {k:'げつようび',r:['getsuyoubi','getsuyobi'],e:'Monday'},{k:'かようび',r:['kayoubi','kayobi'],e:'Tuesday'},
+    {k:'すいようび',r:['suiyoubi','suiyobi'],e:'Wednesday'},{k:'もくようび',r:['mokuyoubi','mokuyobi'],e:'Thursday'},
+    {k:'きんようび',r:['kinyoubi','kinyobi'],e:'Friday'},{k:'どようび',r:['doyoubi','doyobi'],e:'Saturday'},
+    {k:'にちようび',r:['nichiyoubi','nichiyobi'],e:'Sunday'}
+  ]},
+  { name: 'Time of Day', words: [
+    {k:'あさ',r:['asa'],e:'morning'},{k:'ひる',r:['hiru'],e:'noon / daytime'},
+    {k:'よる',r:['yoru'],e:'night'},{k:'ゆうがた',r:['yuugata','yugata'],e:'evening'},
+    {k:'ごぜん',r:['gozen'],e:'AM / morning'},{k:'ごご',r:['gogo'],e:'PM / afternoon'}
+  ]},
+  { name: 'This / Last / Next', words: [
+    {k:'こんしゅう',r:['konshuu','konshu'],e:'this week'},{k:'らいしゅう',r:['raishuu','raishu'],e:'next week'},
+    {k:'せんしゅう',r:['senshuu','senshu'],e:'last week'},{k:'こんげつ',r:['kongetsu'],e:'this month'},
+    {k:'せんげつ',r:['sengetsu'],e:'last month'},{k:'らいげつ',r:['raigetsu'],e:'next month'},
+    {k:'ことし',r:['kotoshi'],e:'this year'},{k:'らいねん',r:['rainen'],e:'next year'},
+    {k:'きょねん',r:['kyonen'],e:'last year'}
+  ]},
+  { name: 'Body Parts', words: [
+    {k:'め',r:['me'],e:'eye'},{k:'くち',r:['kuchi'],e:'mouth'},{k:'て',r:['te'],e:'hand'},
+    {k:'あし',r:['ashi'],e:'foot / leg'},{k:'あたま',r:['atama'],e:'head'},{k:'みみ',r:['mimi'],e:'ear'},
+    {k:'はな',r:['hana'],e:'nose'},{k:'は',r:['ha'],e:'tooth'},{k:'かみ',r:['kami'],e:'hair'},
+    {k:'からだ',r:['karada'],e:'body'},{k:'かお',r:['kao'],e:'face'},{k:'くび',r:['kubi'],e:'neck'}
+  ]},
+  { name: 'Family', words: [
+    {k:'ちち',r:['chichi'],e:'(my) father'},{k:'はは',r:['haha'],e:'(my) mother'},
+    {k:'あに',r:['ani'],e:'(my) older brother'},{k:'あね',r:['ane'],e:'(my) older sister'},
+    {k:'おとうと',r:['otouto','ototo'],e:'(my) younger brother'},{k:'いもうと',r:['imouto','imoto'],e:'(my) younger sister'},
+    {k:'おとうさん',r:['otousan','otoosan'],e:'father (polite)'},{k:'おかあさん',r:['okaasan','okasan'],e:'mother (polite)'},
+    {k:'そふ',r:['sofu'],e:'grandfather'},{k:'そぼ',r:['sobo'],e:'grandmother'}
+  ]},
+  { name: 'People & Pronouns', words: [
+    {k:'わたし',r:['watashi'],e:'I / me'},{k:'あなた',r:['anata'],e:'you'},
+    {k:'かれ',r:['kare'],e:'he / boyfriend'},{k:'かのじょ',r:['kanojo'],e:'she / girlfriend'},
+    {k:'わたしたち',r:['watashitachi'],e:'we / us'},{k:'みんな',r:['minna'],e:'everyone'},
+    {k:'おとこ',r:['otoko'],e:'man / male'},{k:'おんな',r:['onna'],e:'woman / female'}
+  ]},
+  { name: 'Question Words', words: [
+    {k:'なに',r:['nani'],e:'what'},{k:'だれ',r:['dare'],e:'who'},
+    {k:'どこ',r:['doko'],e:'where'},{k:'いつ',r:['itsu'],e:'when'},
+    {k:'なぜ',r:['naze'],e:'why'},{k:'どう',r:['dou','do'],e:'how'},
+    {k:'いくら',r:['ikura'],e:'how much'},{k:'どれ',r:['dore'],e:'which one'}
+  ]},
+  { name: 'Nature & Weather', words: [
+    {k:'みず',r:['mizu'],e:'water'},{k:'ひ',r:['hi'],e:'fire'},
+    {k:'やま',r:['yama'],e:'mountain'},{k:'かわ',r:['kawa'],e:'river'},
+    {k:'き',r:['ki'],e:'tree / wood'},{k:'そら',r:['sora'],e:'sky'},
+    {k:'はな',r:['hana'],e:'flower'},{k:'ゆき',r:['yuki'],e:'snow'},
+    {k:'はれ',r:['hare'],e:'sunny / clear'},{k:'てんき',r:['tenki'],e:'weather'}
+  ]},
+  { name: 'Animals', words: [
+    {k:'いぬ',r:['inu'],e:'dog'},{k:'ねこ',r:['neko'],e:'cat'},
+    {k:'とり',r:['tori'],e:'bird'},{k:'むし',r:['mushi'],e:'insect / bug'}
+  ]},
+  { name: 'Food & Drink', words: [
+    {k:'ごはん',r:['gohan'],e:'rice / meal'},{k:'パン',r:['pan'],e:'bread'},
+    {k:'にく',r:['niku'],e:'meat'},{k:'さかな',r:['sakana'],e:'fish'},
+    {k:'やさい',r:['yasai'],e:'vegetables'},{k:'くだもの',r:['kudamono'],e:'fruit'},
+    {k:'たまご',r:['tamago'],e:'egg'},{k:'しお',r:['shio'],e:'salt'},
+    {k:'さとう',r:['satou','sato'],e:'sugar'},{k:'ジュース',r:['juusu','jusu'],e:'juice'},
+    {k:'おちゃ',r:['ocha'],e:'green tea'}
+  ]},
+  { name: 'Meals & Food Words', words: [
+    {k:'あさごはん',r:['asagohan'],e:'breakfast'},{k:'ひるごはん',r:['hirugohan'],e:'lunch'},
+    {k:'ばんごはん',r:['bangohan'],e:'dinner'},{k:'たべもの',r:['tabemono'],e:'food'},
+    {k:'のみもの',r:['nomimono'],e:'drink / beverage'}
+  ]},
+  { name: 'Places in Town', words: [
+    {k:'がっこう',r:['gakkou','gakko'],e:'school'},{k:'だいがく',r:['daigaku'],e:'university'},
+    {k:'びょういん',r:['byouin','byoin'],e:'hospital'},{k:'ぎんこう',r:['ginkou','ginko'],e:'bank'},
+    {k:'えき',r:['eki'],e:'station'},{k:'くうこう',r:['kuukou','kuuko','kuko'],e:'airport'},
+    {k:'こうえん',r:['kouen','koen'],e:'park'},{k:'みせ',r:['mise'],e:'shop / store'},
+    {k:'ゆうびんきょく',r:['yuubinkyoku','yubinkyoku'],e:'post office'},{k:'としょかん',r:['toshokan'],e:'library'},
+    {k:'ちかてつ',r:['chikatetsu'],e:'subway'},{k:'こうさてん',r:['kousaten','kosaten'],e:'intersection'}
+  ]},
+  { name: 'Around the House', words: [
+    {k:'へや',r:['heya'],e:'room'},{k:'だいどころ',r:['daidokoro'],e:'kitchen'},
+    {k:'トイレ',r:['toire'],e:'toilet'},{k:'まど',r:['mado'],e:'window'},
+    {k:'ドア',r:['doa'],e:'door'},{k:'つくえ',r:['tsukue'],e:'desk'},
+    {k:'いす',r:['isu'],e:'chair'},{k:'ふろ',r:['furo'],e:'bath'},
+    {k:'げんかん',r:['genkan'],e:'entrance'},{k:'にわ',r:['niwa'],e:'garden'}
+  ]},
+  { name: 'Transport', words: [
+    {k:'くるま',r:['kuruma'],e:'car'},{k:'ひこうき',r:['hikouki','hikoki'],e:'airplane'},
+    {k:'ふね',r:['fune'],e:'ship / boat'},{k:'バス',r:['basu'],e:'bus'},
+    {k:'タクシー',r:['takushii','takushi'],e:'taxi'},{k:'バイク',r:['baiku'],e:'motorcycle'},
+    {k:'でんしゃ',r:['densha'],e:'train'}
+  ]},
+  { name: 'Colours', words: [
+    {k:'しろい',r:['shiroi'],e:'white'},{k:'くろい',r:['kuroi'],e:'black'},
+    {k:'あかい',r:['akai'],e:'red'},{k:'あおい',r:['aoi'],e:'blue / green'},
+    {k:'きいろい',r:['kiiroi','kiroi'],e:'yellow'},{k:'ちゃいろい',r:['chairoi'],e:'brown'},
+    {k:'みどり',r:['midori'],e:'green'}
+  ]},
+  { name: 'Size & Shape', words: [
+    {k:'おおきい',r:['ookii','okii'],e:'big / large'},{k:'ちいさい',r:['chiisai','chisai'],e:'small'},
+    {k:'ながい',r:['nagai'],e:'long'},{k:'みじかい',r:['mijikai'],e:'short'},
+    {k:'ひろい',r:['hiroi'],e:'wide / spacious'},{k:'せまい',r:['semai'],e:'narrow'},
+    {k:'おもい',r:['omoi'],e:'heavy'},{k:'かるい',r:['karui'],e:'light'},
+    {k:'まるい',r:['marui'],e:'round'},{k:'おおい',r:['ooi','oi'],e:'many / much'}
+  ]},
+  { name: 'Feelings & State', words: [
+    {k:'うれしい',r:['ureshii'],e:'happy / glad'},{k:'かなしい',r:['kanashii'],e:'sad'},
+    {k:'こわい',r:['kowai'],e:'scary'},{k:'いたい',r:['itai'],e:'painful'},
+    {k:'ねむい',r:['nemui'],e:'sleepy'},{k:'いそがしい',r:['isogashii'],e:'busy'},
+    {k:'すき',r:['suki'],e:'like / fond of'},{k:'きらい',r:['kirai'],e:'dislike'},
+    {k:'つかれる',r:['tsukareru'],e:'to get tired'},{k:'げんき',r:['genki'],e:'healthy / energetic'}
+  ]},
+  { name: 'Movement Verbs', words: [
+    {k:'はしる',r:['hashiru'],e:'to run'},{k:'あるく',r:['aruku'],e:'to walk'},
+    {k:'たつ',r:['tatsu'],e:'to stand'},{k:'すわる',r:['suwaru'],e:'to sit'},
+    {k:'あがる',r:['agaru'],e:'to go up'},{k:'さがる',r:['sagaru'],e:'to go down'},
+    {k:'およぐ',r:['oyogu'],e:'to swim'},{k:'とぶ',r:['tobu'],e:'to fly / jump'},
+    {k:'のぼる',r:['noboru'],e:'to climb'}
+  ]},
+  { name: 'Everyday Action Verbs', words: [
+    {k:'たべる',r:['taberu'],e:'to eat'},{k:'のむ',r:['nomu'],e:'to drink'},
+    {k:'ねる',r:['neru'],e:'to sleep'},{k:'おきる',r:['okiru'],e:'to wake up'},
+    {k:'みる',r:['miru'],e:'to see / watch'},{k:'きく',r:['kiku'],e:'to listen / ask'},
+    {k:'はなす',r:['hanasu'],e:'to speak'},{k:'よむ',r:['yomu'],e:'to read'},
+    {k:'かく',r:['kaku'],e:'to write'},{k:'かう',r:['kau'],e:'to buy'}
+  ]},
+  { name: 'Giving & Receiving', words: [
+    {k:'もらう',r:['morau'],e:'to receive'},{k:'あげる',r:['ageru'],e:'to give'},
+    {k:'くれる',r:['kureru'],e:'to give (to me)'},{k:'かす',r:['kasu'],e:'to lend'},
+    {k:'かりる',r:['kariru'],e:'to borrow'}
+  ]},
+  { name: '🎲 Random N5', words: [] } // populated dynamically from BUILT_IN.N5
+];
+
+const DRILL_GROUP_SIZE = 5;
+const DRILL_PER_WORD = 5;
+const DRILL_ROLLING_SIZE = 20;
+const DRILL_ROLLING_NEEDED = 17;
+
+let drillCat = null, drillGroups = [], drillStageIdx = 0, drillIsLearning = true;
+let drillPool = [], drillSeenSet = new Set(), drillStream = [];
+let drillCurrentWord = null, drillPerWordHits = {}, drillRollingWindow = [], drillRollingActive = false;
+let drillTotalCorrect = 0, drillTotalAnswered = 0, drillInputLocked = false;
+
+function drillShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function drillBuildGroups(words) {
+  const g = [];
+  for (let i = 0; i < words.length; i += DRILL_GROUP_SIZE) g.push(words.slice(i, i + DRILL_GROUP_SIZE));
+  return g;
+}
+
+function drillNextWord() {
+  if (drillStream.length === 0) drillStream = drillShuffle([...drillPool]);
+  drillCurrentWord = drillStream.shift();
+}
+
+function drillRequeue() {
+  const pos = Math.min(2 + Math.floor(Math.random()*3), drillStream.length);
+  drillStream.splice(pos, 0, drillCurrentWord);
+}
+
+function drillStartStage() {
+  if (drillIsLearning) {
+    drillPool = drillGroups[drillStageIdx];
+    drillSeenSet = new Set(drillPool.map(w => w.k));
+  } else {
+    drillPool = drillGroups.slice(0, drillStageIdx + 1).flat();
+    drillSeenSet = new Set();
+  }
+  drillPerWordHits = {};
+  drillPool.forEach(w => { drillPerWordHits[w.k] = DRILL_PER_WORD; });
+  drillRollingWindow = [];
+  drillRollingActive = false;
+  drillStream = drillShuffle([...drillPool]);
+  drillNextWord();
+  drillRender();
+}
+
+function drillCheckAnswer(input) {
+  const val = input.trim().toLowerCase().replace(/[-\s]/g, '');
+  return drillCurrentWord.r.some(r => r.toLowerCase().replace(/[-\s]/g,'') === val);
+}
+
+function drillOnAnswer(correct) {
+  drillTotalAnswered++;
+  if (correct) drillTotalCorrect++;
+  if (correct && drillPerWordHits.hasOwnProperty(drillCurrentWord.k)) {
+    drillPerWordHits[drillCurrentWord.k]--;
+    if (drillPerWordHits[drillCurrentWord.k] <= 0) delete drillPerWordHits[drillCurrentWord.k];
+  }
+  if (Object.keys(drillPerWordHits).length === 0) drillRollingActive = true;
+  if (drillRollingActive) {
+    drillRollingWindow.push(correct);
+    if (drillRollingWindow.length > DRILL_ROLLING_SIZE) drillRollingWindow.shift();
+  }
+  if (!correct) drillRequeue();
+}
+
+function drillStagePassed() {
+  if (Object.keys(drillPerWordHits).length > 0) return false;
+  if (!drillRollingActive) return false;
+  return drillRollingWindow.filter(Boolean).length >= DRILL_ROLLING_NEEDED;
+}
+
+function drillRender() {
+  const isIntro = drillSeenSet.has(drillCurrentWord.k);
+  const kanaEl = document.getElementById("drill-kana");
+  const engEl = document.getElementById("drill-english");
+  const newLabel = document.getElementById("drill-new-label");
+  const typeRow = document.getElementById("drill-type-row");
+  const gotItRow = document.getElementById("drill-gotit-row");
+  const input = document.getElementById("drill-input");
+  const feedback = document.getElementById("drill-feedback");
+  const completeEl = document.getElementById("drill-stage-complete");
+
+  completeEl.classList.remove("show");
+  feedback.textContent = "";
+  feedback.className = "feedback";
+  input.value = "";
+  input.className = "";
+  drillInputLocked = false;
+
+  kanaEl.textContent = drillCurrentWord.k;
+
+  if (isIntro) {
+    // First encounter: show English + kana together
+    newLabel.style.display = "block";
+    kanaEl.style.display = "block";
+    engEl.textContent = drillCurrentWord.e;
+    engEl.style.display = "block";
+    typeRow.style.display = "none";
+    gotItRow.style.display = "flex";
+  } else {
+    // Drill: show English only — type romaji from memory, kana hidden
+    newLabel.style.display = "none";
+    kanaEl.style.display = "none";
+    engEl.textContent = drillCurrentWord.e;
+    engEl.style.display = "block";
+    typeRow.style.display = "flex";
+    gotItRow.style.display = "none";
+    setTimeout(() => input.focus(), 50);
+  }
+
+  drillUpdateMeta();
+}
+
+function drillUpdateMeta() {
+  const g = drillStageIdx + 1, t = drillGroups.length;
+  document.getElementById("drill-stage-label").textContent = `Group ${g} of ${t}`;
+  document.getElementById("drill-stage-pill").textContent = drillIsLearning ? "Learning" : "Reviewing";
+  document.getElementById("drill-score").textContent = `${drillTotalCorrect} / ${drillTotalAnswered}`;
+  document.getElementById("drill-score-text").textContent = `${drillTotalCorrect} / ${drillTotalAnswered}`;
+
+  const remaining = Object.keys(drillPerWordHits).length;
+  const hits = Object.values(drillPerWordHits).reduce((a,b)=>a+b,0);
+  let progressText = "";
+  if (!drillRollingActive) {
+    progressText = remaining > 0
+      ? `${remaining} word${remaining!==1?'s':''} left (${hits} hits remaining)`
+      : "All words hit — building streak...";
+  } else {
+    const got = drillRollingWindow.filter(Boolean).length;
+    const need = DRILL_ROLLING_NEEDED - got;
+    progressText = need > 0 ? `${need} more correct to clear stage` : "Stage complete!";
+  }
+  document.getElementById("drill-progress-text").textContent = progressText;
+
+  const rollingEl = document.getElementById("drill-rolling");
+  rollingEl.innerHTML = drillRollingActive
+    ? drillRollingWindow.map(b => `<div class="drill-dot ${b?'good':'bad'}"></div>`).join("")
+    : "";
+}
+
+function drillSubmit() {
+  if (drillInputLocked) return;
+  const input = document.getElementById("drill-input");
+  const val = input.value.trim();
+  if (!val) return;
+  drillInputLocked = true;
+
+  const correct = drillCheckAnswer(val);
+  const feedback = document.getElementById("drill-feedback");
+  drillOnAnswer(correct);
+
+  if (correct) {
+    input.classList.add("correct");
+    // Reveal the kana as confirmation
+    document.getElementById("drill-kana").style.display = "block";
+    feedback.textContent = "✓  " + drillCurrentWord.k;
+    feedback.className = "feedback good";
+    drillSeenSet.delete(drillCurrentWord.k);
+    setTimeout(() => {
+      if (drillStagePassed()) { drillShowComplete(); }
+      else { drillNextWord(); drillRender(); }
+    }, 600);
+  } else {
+    input.classList.add("wrong");
+    input.classList.add("drill-shake");
+    // Reveal the kana + correct romaji on wrong answer
+    document.getElementById("drill-kana").style.display = "block";
+    feedback.textContent = "✗  " + drillCurrentWord.k + "  (" + drillCurrentWord.r[0] + ")";
+    feedback.className = "feedback bad";
+    setTimeout(() => {
+      input.classList.remove("drill-shake");
+      drillSeenSet.add(drillCurrentWord.k);
+      drillNextWord();
+      drillRender();
+    }, 1500);
+  }
+  drillUpdateMeta();
+}
+
+function drillShowComplete() {
+  const isFinal = drillStageIdx === drillGroups.length - 1 && !drillIsLearning;
+  const completeEl = document.getElementById("drill-stage-complete");
+  const titleEl = document.getElementById("drill-complete-title");
+  const subEl = document.getElementById("drill-complete-sub");
+  const nextBtn = document.getElementById("drill-next-stage-btn");
+
+  if (isFinal) {
+    titleEl.textContent = "できた！ 🎉";
+    subEl.textContent = `All ${drillCat.words.length} words drilled. Choose another category or drill again.`;
+    nextBtn.textContent = "Drill again";
+    nextBtn.onclick = () => { drillStageIdx = 0; drillIsLearning = true; drillStartStage(); };
+  } else if (drillIsLearning) {
+    titleEl.textContent = "よし！ ✓";
+    subEl.textContent = `Group ${drillStageIdx+1} learned. Now review it to lock it in.`;
+    nextBtn.textContent = "Review →";
+    nextBtn.onclick = () => { completeEl.classList.remove("show"); drillAdvance(); };
+  } else {
+    titleEl.textContent = "いいね！ ✓";
+    subEl.textContent = `Groups 1–${drillStageIdx+1} solid. Time for group ${drillStageIdx+2}.`;
+    nextBtn.textContent = `Group ${drillStageIdx+2} →`;
+    nextBtn.onclick = () => { completeEl.classList.remove("show"); drillAdvance(); };
+  }
+  completeEl.classList.add("show");
+}
+
+function drillAdvance() {
+  if (drillIsLearning) { drillIsLearning = false; }
+  else { drillStageIdx++; drillIsLearning = true; }
+  drillStartStage();
+}
+
+function drillStartCategory(index) {
+  let cat = DRILL_CATEGORIES[index];
+  // Random N5 — pick 25 random words from BUILT_IN.N5
+  if (cat.name === "🎲 Random N5") {
+    const n5 = BUILT_IN.N5.filter(w => w.r && w.r.trim());
+    const shuffled = drillShuffle(n5).slice(0, 25);
+    cat = { name: "🎲 Random N5", words: shuffled.map(w => ({k: w.r, r: [w.romaji], e: w.en})) };
+  }
+  drillCat = cat;
+  drillGroups = drillBuildGroups(cat.words);
+  drillStageIdx = 0; drillIsLearning = true;
+  drillTotalCorrect = 0; drillTotalAnswered = 0;
+  document.getElementById("drill-title").textContent = cat.name;
+  showScreen("drill-screen");
+  drillStartStage();
+}
+
+function renderDrillCategories() {
+  const grid = document.getElementById("drill-cat-grid");
+  grid.innerHTML = "";
+  DRILL_CATEGORIES.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "drill-cat-btn";
+    const count = c.name === "🎲 Random N5" ? "25 random words" : `${c.words.length} words`;
+    btn.innerHTML = `<div class="drill-cat-name">${c.name}</div><div class="drill-cat-count">${count}</div>`;
+    btn.onclick = () => drillStartCategory(i);
+    grid.appendChild(btn);
+  });
+  showScreen("drill-cat-screen");
+}
+
+document.getElementById("drill-nav-btn").onclick = renderDrillCategories;
+document.getElementById("drill-cat-back-btn").onclick = () => showScreen("home-screen");
+document.getElementById("drill-back-btn").onclick = renderDrillCategories;
+document.getElementById("drill-check-btn").onclick = drillSubmit;
+document.getElementById("drill-input").addEventListener("keydown", e => { if (e.key === "Enter") drillSubmit(); });
+document.getElementById("drill-gotit-btn").onclick = () => { drillSeenSet.delete(drillCurrentWord.k); drillRender(); };
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.getElementById("drill-gotit-row").style.display !== "none"
+      && document.getElementById("drill-screen").classList.contains("active")) {
+    drillSeenSet.delete(drillCurrentWord.k);
+    drillRender();
+  }
+});
+document.getElementById("drill-finish-btn").onclick = renderDrillCategories;
+
+// ── END DRILL ─────────────────────────────────────────────────────────────────
+
 function checkApiNotice() {
   document.getElementById("api-notice").style.display = getApiKey() ? "none" : "block";
 }
-
+window.onerror = function(msg, url, line) {
+  document.body.innerHTML += '<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;font-size:12px;z-index:9999;">' + msg + ' (line ' + line + ')</div>';
+};
 document.addEventListener("DOMContentLoaded", async () => {
   progress = loadProgress();
   const _savedVocab = loadSavedVocab();
